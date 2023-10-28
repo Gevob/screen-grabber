@@ -107,7 +107,7 @@ impl eframe::App for Windows {
    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
     eframe::egui::Context::set_pixels_per_point(ctx, 1.0);
     match self.schermata {
-        Schermata::Home => gui::home(ctx,&mut self.schermata, &mut self.image, &mut self.texture, frame, &mut self.stroke, &mut self.points),
+        Schermata::Home => gui::home(ctx,&mut self.schermata, &mut self.image, &mut self.texture, &mut self.is_popup_open, &mut self.manager, &mut self.modifier,  &mut self.key, frame, &mut self.stroke, &mut self.points),
         Schermata::Edit => gui::edit(ctx),
     }
 
