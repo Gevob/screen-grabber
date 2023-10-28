@@ -122,11 +122,3 @@ impl eframe::App for Windows {
         println!("proporzione: {:?}",egui::Context::pixels_per_point(ctx));
    }
 }
-
-
-
-
-
-
-    
-
