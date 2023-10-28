@@ -9,11 +9,16 @@ use crate::Schermata;
 use crate::screen;
 
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame){
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>,  is_popup_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier: &mut Modifiers, key: &mut Code, frame: &mut eframe::Frame){
     //let mut texture_data : eframe::epaint::TextureHandle;
-    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
+    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
+        ui.set_enabled(!(*is_popup_open)); 
         menu::bar(ui, |ui| {
-            ui.button("Setting");
+            ui.menu_button("Settings", |ui| {
+                if ui.button("Custom Hotkey").clicked() {
+                    *is_popup_open = true;
+                }
+            });
             //ui.add_space(frame.info().window_info.size.x * 0.45);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
                 ui.button("Salva");
@@ -27,9 +32,6 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                     }
                 });
             });
-            
-
-            
         });    
     //ui.vertical_centered(|ui| {
       //  let (_id,rect) = ui.allocate_space(egui::vec2(70.0, 40.0));
@@ -51,6 +53,10 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
         //}
         
     //});
+
+    if *is_popup_open {
+        show_popup(is_popup_open, manager, modifier, key, ctx);
+    }
 
     if texture.is_some() {
         
@@ -99,4 +105,79 @@ pub fn edit(ctx: &egui::Context){
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {      
     
 });
+}
+
+fn show_popup(is_window_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier: &mut Modifiers, key: &mut Code, ctx: &egui::Context) {
+    let window_size = egui::vec2(0.0, 0.0);
+
+    if *modifier == Modifiers::default() || *key == Code::default() { //setta la shortcut de default (scelta da noi)
+        *modifier = Modifiers::CONTROL;
+        *key = Code::KeyA;
+    }
+
+    egui::Window::new("Custom Window")
+        .anchor(egui::Align2::CENTER_CENTER, window_size)
+        .show(ctx, |ui| {
+            egui::ComboBox::from_label("Choose modifier")
+                .selected_text(format!("{:?}", modifier))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(modifier, Modifiers::CONTROL, "Ctrl");
+                    ui.selectable_value(modifier, Modifiers::SHIFT, "Shift");
+                    ui.selectable_value(modifier, Modifiers::ALT, "Alt");
+                });
+
+            egui::ComboBox::from_label("Choose Key")
+                .selected_text(format!("{:?}", key))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(key, Code::KeyA, "KeyA");
+                    ui.selectable_value(key, Code::KeyB, "KeyB");
+                    ui.selectable_value(key, Code::KeyC, "KeyC");
+                    ui.selectable_value(key, Code::KeyD, "KeyD");
+                    ui.selectable_value(key, Code::KeyE, "KeyE");
+                    ui.selectable_value(key, Code::KeyF, "KeyF");
+                    ui.selectable_value(key, Code::KeyG, "KeyG");
+                    ui.selectable_value(key, Code::KeyH, "KeyH");
+                    ui.selectable_value(key, Code::KeyI, "KeyI");
+                    ui.selectable_value(key, Code::KeyJ, "KeyJ");
+                    ui.selectable_value(key, Code::KeyK, "KeyK");
+                    ui.selectable_value(key, Code::KeyL, "KeyL");
+                    ui.selectable_value(key, Code::KeyM, "KeyM");
+                    ui.selectable_value(key, Code::KeyN, "KeyN");
+                    ui.selectable_value(key, Code::KeyO, "KeyO");
+                    ui.selectable_value(key, Code::KeyP, "KeyP");
+                    ui.selectable_value(key, Code::KeyQ, "KeyQ");
+                    ui.selectable_value(key, Code::KeyR, "KeyR");
+                    ui.selectable_value(key, Code::KeyS, "KeyS");
+                    ui.selectable_value(key, Code::KeyT, "KeyT");
+                    ui.selectable_value(key, Code::KeyU, "KeyU");
+                    ui.selectable_value(key, Code::KeyV, "KeyV");
+                    ui.selectable_value(key, Code::KeyW, "KeyW");
+                    ui.selectable_value(key, Code::KeyX, "KeyX");
+                    ui.selectable_value(key, Code::KeyY, "KeyY");
+                    ui.selectable_value(key, Code::KeyZ, "KeyZ");
+                    ui.selectable_value(key, Code::F1, "F1");
+                    ui.selectable_value(key, Code::F2, "F2");
+                    ui.selectable_value(key, Code::F3, "F3");
+                    ui.selectable_value(key, Code::F4, "F4");
+                    ui.selectable_value(key, Code::F5, "F5");
+                    ui.selectable_value(key, Code::F6, "F6");
+                    ui.selectable_value(key, Code::F7, "F7");
+                    ui.selectable_value(key, Code::F8, "F8");
+                    ui.selectable_value(key, Code::F9, "F9");
+                    ui.selectable_value(key, Code::F10, "F10");
+                    ui.selectable_value(key, Code::F11, "F11");
+                    ui.selectable_value(key, Code::F12, "F12");
+                    //... aggiungere altre keys nel caso sia necessario ...
+                });
+            
+            let mut save_button = Button::new("Click me").fill(Color32::LIGHT_BLUE);
+
+            if ui.add(save_button).clicked() {
+                //genera la hotkey
+                let hotkey = HotKey::new(Some(*modifier), *key);
+                //e poi la registri
+                ((*manager).0).register(hotkey).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager didn't have the Default trait
+                *is_window_open = false;             
+            }
+        });
 }
