@@ -5,6 +5,8 @@ mod screen;
 use eframe::egui;
 use eframe::egui::TextureHandle;
 use image::RgbaImage;
+use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Modifiers, Code}};
+
 fn main() {
     
     //let mut ctx = egui::Context::default();
@@ -38,11 +40,25 @@ fn main() {
     
 }
 
+pub struct MyGlobalHotKeyManager(GlobalHotKeyManager);
+
+impl Default for MyGlobalHotKeyManager {
+    fn default() -> Self {
+        MyGlobalHotKeyManager(GlobalHotKeyManager::new().unwrap())
+    }
+}
+
 #[derive(Default)]
 struct Windows {
     schermata: Schermata,
     image : RgbaImage,
     texture : Option<TextureHandle>,
+
+    //gestione delle hotkeys
+    is_popup_open: bool,
+    manager: MyGlobalHotKeyManager,
+    modifier: Modifiers,
+    key: Code,
 }
 
 #[derive(Default,Debug)]
@@ -71,6 +87,14 @@ impl eframe::App for Windows {
     match self.schermata {
         Schermata::Home => gui::home(ctx,&mut self.schermata, &mut self.image, &mut self.texture, frame),
         Schermata::Edit => gui::edit(ctx),
+    }
+
+    if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+        self.image = screen::screenshot().unwrap();
+        let flat_image = self.image.as_flat_samples();
+        let color_image2 = egui::ColorImage::from_rgba_unmultiplied([self.image.width() as usize, self.image.height() as usize],flat_image.samples);
+        let image_data = egui::ImageData::from(color_image2);
+        self.texture = Some(ctx.load_texture("screen", image_data, Default::default()));
     }
         //println!("{:?}",frame.info().window_info.size);
         println!("proporzione: {:?}",egui::Context::pixels_per_point(ctx));
