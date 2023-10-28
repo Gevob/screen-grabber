@@ -4,12 +4,16 @@ use ::egui::Vec2;
 
 use egui::{menu, Button};
 use image::RgbaImage;
+use eframe::egui::Pos2;
 use eframe::egui::TextureHandle;
 use crate::Schermata;
 use crate::screen;
+use crate::MyGlobalHotKeyManager;
+use global_hotkey::hotkey::{HotKey, Code, Modifiers};
+use egui::{Color32, Stroke, Ui, Visuals};
 
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>,  is_popup_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier: &mut Modifiers, key: &mut Code, frame: &mut eframe::Frame, stroke :&mut Stroke, points: &mut Vec<Vec<Pos2>>){
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>,  is_popup_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier: &mut Modifiers, key: &mut Code, frame: &mut eframe::Frame, stroke: &mut Stroke, points: &mut Vec<Vec<Pos2>>){
     //let mut texture_data : eframe::epaint::TextureHandle;
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
         ui.set_enabled(!(*is_popup_open)); 
@@ -19,7 +23,7 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                     *is_popup_open = true;
                 }
             });
-            /*           funziona che ritorna i bottoni con le icone */
+            /*    
             let image_data = include_bytes!("./images/marker.png");
             let image2 = image::load_from_memory(image_data).expect("Failed to load image");
             let image_buffer = image2.to_rgba8();
@@ -28,7 +32,7 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
             let image_data2 = egui::ImageData::from(color_image2);
             let texture2 = ui.ctx().load_texture("screen", image_data2, Default::default());
             ui.add(eframe::egui::Button::image_and_text(texture2.id(), [16.0,16.0], ""));
-            /*                    */
+                                */
             if texture.is_some() {
                            ui.color_edit_button_srgba(&mut stroke.color);
                            ui.add(eframe::egui::Slider::new(&mut stroke.width, 1.0..=8.0).integer());
