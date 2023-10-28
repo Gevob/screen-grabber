@@ -19,6 +19,21 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                     *is_popup_open = true;
                 }
             });
+            /*           funziona che ritorna i bottoni con le icone */
+            let image_data = include_bytes!("./images/marker.png");
+            let image2 = image::load_from_memory(image_data).expect("Failed to load image");
+            let image_buffer = image2.to_rgba8();
+            let flat_image2 = image_buffer.as_flat_samples();
+            let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image2.width() as usize, image2.height() as usize],flat_image2.samples);
+            let image_data2 = egui::ImageData::from(color_image2);
+            let texture2 = ui.ctx().load_texture("screen", image_data2, Default::default());
+            ui.add(eframe::egui::Button::image_and_text(texture2.id(), [16.0,16.0], ""));
+            /*                    */
+            if texture.is_some() {
+                           ui.color_edit_button_srgba(&mut stroke.color);
+                           ui.add(eframe::egui::Slider::new(&mut stroke.width, 1.0..=8.0).integer());
+                           
+            }
             //ui.add_space(frame.info().window_info.size.x * 0.45);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
                 ui.button("Salva");
@@ -62,13 +77,12 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
         
         
         ui.centered_and_justified(|ui| {
-            println!("FIN {:?}",frame.info().window_info);
-            println!("IMM {:?}",texture.as_ref().unwrap().size_vec2());
-            //ui.add(egui::Image::new(texture.as_ref().unwrap().id(), texture.as_ref().unwrap().size_vec2()));
-            println!("PROP finestra: {}, PROP Imm: {}",frame.info().window_info.size.x / frame.info().window_info.size.y,texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y);
-            //if frame.info().window_info.size.x / frame.info().window_info.size.y == texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y {
-                ui.add(egui::Image::new(texture.as_ref().unwrap().id(), set_image_gui_visible(frame.info().window_info.size,texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y)));
-            //}
+                        ui.add(egui::Image::new(texture.as_ref().unwrap().id(), set_image_gui_visible(frame.info().window_info.size,texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y))); 
+                        egui::Area::new("my_area")
+                        .default_pos(egui::pos2(0.0, 32.0))
+                        .show(ctx, |ui| {
+                        screen::ui_content(ui, points, stroke);
+                        });
                 
         });
         
