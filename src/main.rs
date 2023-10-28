@@ -4,6 +4,8 @@ mod screen;
 
 use eframe::egui;
 use eframe::egui::TextureHandle;
+use eframe::egui::Pos2;
+use eframe::egui::Stroke;
 use image::RgbaImage;
 use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Modifiers, Code}};
 
@@ -59,6 +61,11 @@ struct Windows {
     manager: MyGlobalHotKeyManager,
     modifier: Modifiers,
     key: Code,
+
+    //gestione editing
+    stroke: Stroke,
+    points: Vec<Vec<Pos2>>,
+    modifiche: EditType,
 }
 
 #[derive(Default,Debug)]
@@ -67,6 +74,18 @@ pub enum Schermata {
     Home,
     Edit,
 }
+//indica il tipo di editing
+#[derive(Default,Debug)]
+pub enum EditType {
+    #[default]
+    Raw,
+    Pennarello,
+    Evidenziatore,
+    Cerchi,
+    Rettangoli,
+    Gomma
+}
+
 
 impl Windows {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
@@ -77,7 +96,10 @@ impl Windows {
          //cc.egui_ctx.set_pixels_per_point(1.0);
         //println!("{:?}",cc.egui_ctx.pixels_per_point());
         
-        Self::default()
+        Self {
+            stroke: Stroke::new(1.0, eframe::egui::Color32::from_rgba_premultiplied(200, 195, 25, 255)),
+            ..Default::default()
+        }
     }
 }
 
@@ -85,7 +107,7 @@ impl eframe::App for Windows {
    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
     eframe::egui::Context::set_pixels_per_point(ctx, 1.0);
     match self.schermata {
-        Schermata::Home => gui::home(ctx,&mut self.schermata, &mut self.image, &mut self.texture, frame),
+        Schermata::Home => gui::home(ctx,&mut self.schermata, &mut self.image, &mut self.texture, frame, &mut self.stroke, &mut self.points),
         Schermata::Edit => gui::edit(ctx),
     }
 
