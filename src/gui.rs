@@ -9,7 +9,7 @@ use crate::Schermata;
 use crate::screen;
 
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>,  is_popup_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier: &mut Modifiers, key: &mut Code, frame: &mut eframe::Frame){
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>,  is_popup_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier: &mut Modifiers, key: &mut Code, frame: &mut eframe::Frame, stroke :&mut Stroke, points: &mut Vec<Vec<Pos2>>){
     //let mut texture_data : eframe::epaint::TextureHandle;
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
         ui.set_enabled(!(*is_popup_open)); 
