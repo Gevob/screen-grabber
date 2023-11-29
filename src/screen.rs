@@ -7,7 +7,7 @@ use eframe::egui::*;
 #[derive(Debug)]
 struct ErrorScreenshot(String);
 
-pub fn screenshot () -> Result < RgbaImage, Box<dyn Error>> { 
+pub fn screenshot () -> Result <RgbaImage, Box<dyn Error>> { 
     let start = Instant::now();
     let display_infos: Vec<display_info::DisplayInfo> = screenshots::display_info::DisplayInfo::all().unwrap();
     let screens = Screen::all().unwrap();
@@ -23,27 +23,19 @@ pub fn screenshot () -> Result < RgbaImage, Box<dyn Error>> {
             println!("capturer {screen:?}");
             let mut raw_image: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> = screen.capture().unwrap();
             return Ok( raw_image);
-            //image
-              //  .save(format!("C:/Users/peppi/Downloads/{}.png", screen.display_info.id))
-                //.unwrap();
-    
-            //image = screen.capture_area(300, 300, 300, 300).unwrap();
-            //image
-             //   .save(format!("C:/Users/peppi/Downloads/{}-2.png", screen.display_info.id))
-              //  .unwrap();
         }
         return Err("Nessuno Schermo disponibile")?;
     }
 }
 
 
-    pub fn ui_content( ui: &mut Ui, lines: &mut Vec<Vec<Pos2>>, stroke: &mut Stroke) -> eframe::egui::Response {
+    pub fn ui_content( ui: &mut Ui, lines: &mut Vec<Vec<Pos2>>, stroke: &mut Stroke, resp: Response, dim: Vec2) -> eframe::egui::Response {
         
         let (mut response, painter) =
-            ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag());
+            ui.allocate_painter(dim , Sense::drag());
             
         let to_screen = emath::RectTransform::from_to(
-            Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),
+            Rect::from_min_size(response.rect.min, response.rect.square_proportions()),
             response.rect,
         );
         let from_screen = to_screen.inverse();
