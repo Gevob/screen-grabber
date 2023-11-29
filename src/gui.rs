@@ -1,108 +1,159 @@
 
+use core::panic;
+use std::collections::HashSet;
+use std::path::PathBuf;
+
 use eframe::egui;
+use eframe::epaint::ColorImage;
+use eframe::epaint::PathShape;
+//use ::egui::Shape;
 use ::egui::Vec2;
 
-use egui::{menu, Button};
+use eframe::egui::Shape::Path;
+use ::egui::vec2;
+use egui::{menu, Button, Color32};
+use image::DynamicImage;
+use image::ImageBuffer;
+use image::ImageOutputFormat;
 use image::RgbaImage;
+use image::GenericImageView;
 use eframe::egui::Pos2;
 use eframe::egui::TextureHandle;
 use crate::Schermata;
 use crate::screen;
 use crate::MyGlobalHotKeyManager;
 use global_hotkey::hotkey::{HotKey, Code, Modifiers};
-use egui::{Color32, Stroke, Ui, Visuals};
+use egui::{Grid, Stroke, Ui, Visuals, Label};
+use image::{save_buffer, ImageFormat, ColorType};
+use rfd::FileDialog;
+use chrono::prelude::*;
+use std::io::Cursor;
+use image::io::Reader as ImageReader;
 
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>,  is_popup_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier: &mut Modifiers, key: &mut Code, frame: &mut eframe::Frame, stroke: &mut Stroke, points: &mut Vec<Vec<Pos2>>){
-    //let mut texture_data : eframe::epaint::TextureHandle;
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>,  is_popup_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, frame: &mut eframe::Frame, stroke: &mut Stroke, points: &mut Vec<Vec<Pos2>>, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, file_format: &mut String, save_path: &mut PathBuf, is_popup_open2: &mut bool, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code,  file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code, name_convention: &mut String, name_convention_tmp: &mut String){
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
-        ui.set_enabled(!(*is_popup_open)); 
-        menu::bar(ui, |ui| {
-            ui.menu_button("Settings", |ui| {
-                if ui.button("Custom Hotkey").clicked() {
-                    *is_popup_open = true;
-                }
-            });
-            /*    
-            let image_data = include_bytes!("./images/marker.png");
-            let image2 = image::load_from_memory(image_data).expect("Failed to load image");
-            let image_buffer = image2.to_rgba8();
-            let flat_image2 = image_buffer.as_flat_samples();
-            let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image2.width() as usize, image2.height() as usize],flat_image2.samples);
-            let image_data2 = egui::ImageData::from(color_image2);
-            let texture2 = ui.ctx().load_texture("screen", image_data2, Default::default());
-            ui.add(eframe::egui::Button::image_and_text(texture2.id(), [16.0,16.0], ""));
-                                */
-            if texture.is_some() {
-                           ui.color_edit_button_srgba(&mut stroke.color);
-                           ui.add(eframe::egui::Slider::new(&mut stroke.width, 1.0..=8.0).integer());
-                           
-            }
-            //ui.add_space(frame.info().window_info.size.x * 0.45);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
-                ui.button("Salva");
-                ui.vertical_centered(|ui| {
-                    if ui.button("Screenshots").clicked() {
-                        *image = screen::screenshot().unwrap();
-                        let flat_image = image.as_flat_samples();
-                        let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize],flat_image.samples);
-                        let image_data = egui::ImageData::from(color_image2);
-                        *texture = Some(ui.ctx().load_texture("screen", image_data, Default::default()));
+            ui.set_enabled(!(*is_popup_open) && !(*is_popup_open2)); 
+
+            menu::bar(ui, |ui| {
+                ui.menu_button("Settings", |ui| {
+                    if ui.button("Custom Hotkey").clicked() {
+                        *is_popup_open = true;
+                    }
+
+                    if ui.button("Saving settings").clicked() {
+                        *is_popup_open2 = true;
                     }
                 });
+
+                if ui.button("Screenshots").clicked() {
+                    *image = screen::screenshot().unwrap();
+                    let flat_image = image.as_flat_samples();
+                    let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize],flat_image.samples);
+                    let image_data = egui::ImageData::from(color_image2);
+                    *texture = Some(ui.ctx().load_texture("screen", image_data, Default::default()));
+                    *schermata = Schermata::Edit;
+                }
+                    
             });
-        });    
-    //ui.vertical_centered(|ui| {
-      //  let (_id,rect) = ui.allocate_space(egui::vec2(70.0, 40.0));
+
+            ui.centered_and_justified(|ui| {
+            //mostro le hotkeys registrate
+                Grid::new("some_unique_id").show(ui, |ui| {
+                    ui.label("REGISTERED KEYS");
+                    ui.end_row();
         
-            //if ui.button("Nuovo").clicked() {
-                // Azione da intraprendere quando il pulsante viene premuto
-            //}
-       // if ui.put(rect, egui::Button::new("Screenshot")).clicked() {
-         //   *image = screen::screenshot().unwrap();
-           // let flat_image = image.as_flat_samples();
-           // let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize],flat_image.samples);
-            //let color_image = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize], image.as_ref());
-            //let image_data = egui::ImageData::from(color_image2);
-            //let option = egui::TextureOptions::LINEAR;
-            //let texture_data  = eframe::egui::Context::default().load_texture( "image",image_data, option);
-            //*texture = Some(texture_data);
-            //ui.image(texture_data.id(), texture_data.size_vec2());
-            //*texture = Some(ui.ctx().load_texture("screen", image_data, Default::default()));
-        //}
-        
-    //});
+                    for curr_hotkey in hotkeys_list.iter(){
+                        //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                        ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1));
+                        ui.label(curr_hotkey.2.clone());
+                        ui.end_row();
+                    }
+
+                    ui.add_space(20.0);
+
+                    ui.end_row();                
+                    ui.label("CUSTOM SAVING");
+
+                    ui.end_row();
+                    ui.label("File Format: ");
+                    ui.label(file_format.clone());
+
+                    ui.end_row();
+                    ui.label("Default Path :");
+
+                    if *save_path == PathBuf::default(){
+                        ui.label("Go to settings...");
+                    }
+                    else {
+                        ui.label(save_path.clone().into_os_string().into_string().unwrap());
+                    }
+
+                    ui.end_row();
+                    ui.label("File name:");
+                    ui.label(name_convention.clone());
+                    
+
+                });
+            });
+    });    
+     
 
     if *is_popup_open {
-        show_popup(is_popup_open, manager, modifier, key, ctx);
+        show_popup(is_popup_open, manager, modifier_copy, key_copy, modifier_screen, key_screen, modifier_save, key_save,  hotkeys_list, ctx, modifier_copy_tmp, key_copy_tmp, modifier_screen_tmp, key_screen_tmp, modifier_save_tmp, key_save_tmp);
     }
 
-    if texture.is_some() {
-        
-        
-        ui.centered_and_justified(|ui| {
-                        ui.add(egui::Image::new(texture.as_ref().unwrap().id(), set_image_gui_visible(frame.info().window_info.size,texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y))); 
-                        egui::Area::new("my_area")
-                        .default_pos(egui::pos2(0.0, 32.0))
-                        .show(ctx, |ui| {
-                        screen::ui_content(ui, points, stroke);
-                        });
-                
-        });
-        
-        //ui.image(texture.as_ref().unwrap().id(),egui::vec2(900.0, 600.0));// per qualche strano motivo non si vede
-        
-       
-        
+    if *is_popup_open2 {
+        show_popup2(ctx, is_popup_open2, file_format, save_path, file_format_tmp, save_path_tmp, name_convention, name_convention_tmp);
     }
-    if texture.is_none() {
-        ui.centered_and_justified(|ui| {
-            ui.label("per i dev,aggiungere hotkey list al posto di quello che stai leggendo");
+
+}
+
+pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, points: &mut Vec<Vec<Pos2>>, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
+    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
+        menu::bar(ui, |ui| { 
+            ui.color_edit_button_srgba(&mut stroke.color);
+            ui.add(eframe::egui::Slider::new(&mut stroke.width, 1.0..=8.0).integer());   
+
+            if ui.button("Discard").clicked() {
+                *schermata = Schermata::Home;
+                //elimina anche gli edit
+                //e setta a null la textureHandle
+            }
+
+            if ui.button("Save").clicked(){
+                let now = Utc::now();
+                let ts = now.timestamp(); //add timestamp in the name convention, in order to have unique files
+
+                // Save the DynamicImage to a file
+                let dynamic_image = DynamicImage::ImageRgba8(rgba_image.clone());                
+                let output_path = format!("{}\\{}_{}{}", save_path.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
+                dynamic_image.save_with_format(output_path, ImageFormat::Jpeg).expect("Failed to save image");
+            }
         });
-        //ui.label("per i dev,aggiungere hotkey list al posto di quello che stai leggendo");
+
+        ui.add_space(30.0);
+
+        ui.centered_and_justified(|ui| {
+                let mut edited_image = egui::Image::new(
+                    texture.as_ref().unwrap().id(),
+                    set_image_gui_visible(
+                        frame.info().window_info.size,
+                        texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y,
+                    ),
+                );
+                let response = ui.add(edited_image);
         
-    }
-});
+                let image_center = response.rect.center();
+                let area_pos = image_center - edited_image.size() * 0.5;
+        
+                egui::Area::new("my_area")
+                    .default_pos(area_pos)
+                    .show(ui.ctx(), |ui| {
+                        screen::ui_content(ui, points, stroke, response, edited_image.size());
+                    });
+        });
+    });
 }
 
 
@@ -110,92 +161,397 @@ fn set_image_gui_visible (window_size :eframe::egui::Vec2, prop :f32) -> eframe:
     let mut  size = eframe::egui::Vec2::new(0.0, 0.0);
     size.x = window_size.x * 0.8;
     size.y = size.x / prop;
-    //println!("BEFORE SECOND IF: {:?}",size);
     if size.y >= window_size.y * 0.8 {
         size.y = window_size.y * 0.8;
         size.x = size.y * prop;
-        //println!("AFTERl SECOND IF: {:?}",size);
     }
     size
 }
 
-pub fn edit(ctx: &egui::Context){
-    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {      
-    
-});
-}
+fn show_popup(is_window_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, ctx: &egui::Context, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code) {
 
-fn show_popup(is_window_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier: &mut Modifiers, key: &mut Code, ctx: &egui::Context) {
     let window_size = egui::vec2(0.0, 0.0);
+    let button_color = Color32::from_rgb(255, 0, 0);
 
-    if *modifier == Modifiers::default() || *key == Code::default() { //setta la shortcut de default (scelta da noi)
-        *modifier = Modifiers::CONTROL;
-        *key = Code::KeyA;
-    }
-
-    egui::Window::new("Custom Window")
+    egui::Window::new("Custom Hotkey")
         .anchor(egui::Align2::CENTER_CENTER, window_size)
         .show(ctx, |ui| {
-            egui::ComboBox::from_label("Choose modifier")
-                .selected_text(format!("{:?}", modifier))
+
+            Grid::new("miao").show(ui, |ui| {
+                ui.label("COPY ");
+
+                egui::ComboBox::from_id_source("Choose modifier copy")
+                .selected_text(format!("{:?}", modifier_copy_tmp))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(modifier, Modifiers::CONTROL, "Ctrl");
-                    ui.selectable_value(modifier, Modifiers::SHIFT, "Shift");
-                    ui.selectable_value(modifier, Modifiers::ALT, "Alt");
+                    ui.selectable_value(modifier_copy_tmp, Modifiers::CONTROL, "Ctrl");
+                    ui.selectable_value(modifier_copy_tmp, Modifiers::SHIFT, "Shift");
+                    ui.selectable_value(modifier_copy_tmp, Modifiers::ALT, "Alt");
                 });
 
-            egui::ComboBox::from_label("Choose Key")
-                .selected_text(format!("{:?}", key))
+                egui::ComboBox::from_id_source("Choose Key copy")
+                .selected_text(format!("{:?}", key_copy_tmp))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(key, Code::KeyA, "KeyA");
-                    ui.selectable_value(key, Code::KeyB, "KeyB");
-                    ui.selectable_value(key, Code::KeyC, "KeyC");
-                    ui.selectable_value(key, Code::KeyD, "KeyD");
-                    ui.selectable_value(key, Code::KeyE, "KeyE");
-                    ui.selectable_value(key, Code::KeyF, "KeyF");
-                    ui.selectable_value(key, Code::KeyG, "KeyG");
-                    ui.selectable_value(key, Code::KeyH, "KeyH");
-                    ui.selectable_value(key, Code::KeyI, "KeyI");
-                    ui.selectable_value(key, Code::KeyJ, "KeyJ");
-                    ui.selectable_value(key, Code::KeyK, "KeyK");
-                    ui.selectable_value(key, Code::KeyL, "KeyL");
-                    ui.selectable_value(key, Code::KeyM, "KeyM");
-                    ui.selectable_value(key, Code::KeyN, "KeyN");
-                    ui.selectable_value(key, Code::KeyO, "KeyO");
-                    ui.selectable_value(key, Code::KeyP, "KeyP");
-                    ui.selectable_value(key, Code::KeyQ, "KeyQ");
-                    ui.selectable_value(key, Code::KeyR, "KeyR");
-                    ui.selectable_value(key, Code::KeyS, "KeyS");
-                    ui.selectable_value(key, Code::KeyT, "KeyT");
-                    ui.selectable_value(key, Code::KeyU, "KeyU");
-                    ui.selectable_value(key, Code::KeyV, "KeyV");
-                    ui.selectable_value(key, Code::KeyW, "KeyW");
-                    ui.selectable_value(key, Code::KeyX, "KeyX");
-                    ui.selectable_value(key, Code::KeyY, "KeyY");
-                    ui.selectable_value(key, Code::KeyZ, "KeyZ");
-                    ui.selectable_value(key, Code::F1, "F1");
-                    ui.selectable_value(key, Code::F2, "F2");
-                    ui.selectable_value(key, Code::F3, "F3");
-                    ui.selectable_value(key, Code::F4, "F4");
-                    ui.selectable_value(key, Code::F5, "F5");
-                    ui.selectable_value(key, Code::F6, "F6");
-                    ui.selectable_value(key, Code::F7, "F7");
-                    ui.selectable_value(key, Code::F8, "F8");
-                    ui.selectable_value(key, Code::F9, "F9");
-                    ui.selectable_value(key, Code::F10, "F10");
-                    ui.selectable_value(key, Code::F11, "F11");
-                    ui.selectable_value(key, Code::F12, "F12");
+                    ui.selectable_value(key_copy_tmp, Code::KeyA, "KeyA");
+                    ui.selectable_value(key_copy_tmp, Code::KeyB, "KeyB");
+                    ui.selectable_value(key_copy_tmp, Code::KeyC, "KeyC");
+                    ui.selectable_value(key_copy_tmp, Code::KeyD, "KeyD");
+                    ui.selectable_value(key_copy_tmp, Code::KeyE, "KeyE");
+                    ui.selectable_value(key_copy_tmp, Code::KeyF, "KeyF");
+                    ui.selectable_value(key_copy_tmp, Code::KeyG, "KeyG");
+                    ui.selectable_value(key_copy_tmp, Code::KeyH, "KeyH");
+                    ui.selectable_value(key_copy_tmp, Code::KeyI, "KeyI");
+                    ui.selectable_value(key_copy_tmp, Code::KeyJ, "KeyJ");
+                    ui.selectable_value(key_copy_tmp, Code::KeyK, "KeyK");
+                    ui.selectable_value(key_copy_tmp, Code::KeyL, "KeyL");
+                    ui.selectable_value(key_copy_tmp, Code::KeyM, "KeyM");
+                    ui.selectable_value(key_copy_tmp, Code::KeyN, "KeyN");
+                    ui.selectable_value(key_copy_tmp, Code::KeyO, "KeyO");
+                    ui.selectable_value(key_copy_tmp, Code::KeyP, "KeyP");
+                    ui.selectable_value(key_copy_tmp, Code::KeyQ, "KeyQ");
+                    ui.selectable_value(key_copy_tmp, Code::KeyR, "KeyR");
+                    ui.selectable_value(key_copy_tmp, Code::KeyS, "KeyS");
+                    ui.selectable_value(key_copy_tmp, Code::KeyT, "KeyT");
+                    ui.selectable_value(key_copy_tmp, Code::KeyU, "KeyU");
+                    ui.selectable_value(key_copy_tmp, Code::KeyV, "KeyV");
+                    ui.selectable_value(key_copy_tmp, Code::KeyW, "KeyW");
+                    ui.selectable_value(key_copy_tmp, Code::KeyX, "KeyX");
+                    ui.selectable_value(key_copy_tmp, Code::KeyY, "KeyY");
+                    ui.selectable_value(key_copy_tmp, Code::KeyZ, "KeyZ");
+                    ui.selectable_value(key_copy_tmp, Code::F1, "F1");
+                    ui.selectable_value(key_copy_tmp, Code::F2, "F2");
+                    ui.selectable_value(key_copy_tmp, Code::F3, "F3");
+                    ui.selectable_value(key_copy_tmp, Code::F5, "F5");
+                    ui.selectable_value(key_copy_tmp, Code::F6, "F6");
+                    ui.selectable_value(key_copy_tmp, Code::F7, "F7");
+                    ui.selectable_value(key_copy_tmp, Code::F8, "F8");
+                    ui.selectable_value(key_copy_tmp, Code::F9, "F9");
+                    ui.selectable_value(key_copy_tmp, Code::F10, "F10");
+                    ui.selectable_value(key_copy_tmp, Code::F11, "F11");
+                    ui.selectable_value(key_copy_tmp, Code::F12, "F12");
                     //... aggiungere altre keys nel caso sia necessario ...
                 });
-            
-            let mut save_button = Button::new("Click me").fill(Color32::LIGHT_BLUE);
 
-            if ui.add(save_button).clicked() {
+                ui.end_row();
+
+                ui.label("SCREEN ");
+
+                egui::ComboBox::from_id_source("Choose modifier screen")
+                .selected_text(format!("{:?}", modifier_screen_tmp))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(modifier_screen_tmp, Modifiers::CONTROL, "Ctrl");
+                    ui.selectable_value(modifier_screen_tmp, Modifiers::SHIFT, "Shift");
+                    ui.selectable_value(modifier_screen_tmp, Modifiers::ALT, "Alt");
+                });
+
+                egui::ComboBox::from_id_source("Choose Key screen")
+                .selected_text(format!("{:?}", key_screen_tmp))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(key_screen_tmp, Code::KeyA, "KeyA");
+                    ui.selectable_value(key_screen_tmp, Code::KeyB, "KeyB");
+                    ui.selectable_value(key_screen_tmp, Code::KeyC, "KeyC");
+                    ui.selectable_value(key_screen_tmp, Code::KeyD, "KeyD");
+                    ui.selectable_value(key_screen_tmp, Code::KeyE, "KeyE");
+                    ui.selectable_value(key_screen_tmp, Code::KeyF, "KeyF");
+                    ui.selectable_value(key_screen_tmp, Code::KeyG, "KeyG");
+                    ui.selectable_value(key_screen_tmp, Code::KeyH, "KeyH");
+                    ui.selectable_value(key_screen_tmp, Code::KeyI, "KeyI");
+                    ui.selectable_value(key_screen_tmp, Code::KeyJ, "KeyJ");
+                    ui.selectable_value(key_screen_tmp, Code::KeyK, "KeyK");
+                    ui.selectable_value(key_screen_tmp, Code::KeyL, "KeyL");
+                    ui.selectable_value(key_screen_tmp, Code::KeyM, "KeyM");
+                    ui.selectable_value(key_screen_tmp, Code::KeyN, "KeyN");
+                    ui.selectable_value(key_screen_tmp, Code::KeyO, "KeyO");
+                    ui.selectable_value(key_screen_tmp, Code::KeyP, "KeyP");
+                    ui.selectable_value(key_screen_tmp, Code::KeyQ, "KeyQ");
+                    ui.selectable_value(key_screen_tmp, Code::KeyR, "KeyR");
+                    ui.selectable_value(key_screen_tmp, Code::KeyS, "KeyS");
+                    ui.selectable_value(key_screen_tmp, Code::KeyT, "KeyT");
+                    ui.selectable_value(key_screen_tmp, Code::KeyU, "KeyU");
+                    ui.selectable_value(key_screen_tmp, Code::KeyV, "KeyV");
+                    ui.selectable_value(key_screen_tmp, Code::KeyW, "KeyW");
+                    ui.selectable_value(key_screen_tmp, Code::KeyX, "KeyX");
+                    ui.selectable_value(key_screen_tmp, Code::KeyY, "KeyY");
+                    ui.selectable_value(key_screen_tmp, Code::KeyZ, "KeyZ");
+                    ui.selectable_value(key_screen_tmp, Code::F1, "F1");
+                    ui.selectable_value(key_screen_tmp, Code::F2, "F2");
+                    ui.selectable_value(key_screen_tmp, Code::F3, "F3");
+                    ui.selectable_value(key_screen_tmp, Code::F5, "F5");
+                    ui.selectable_value(key_screen_tmp, Code::F6, "F6");
+                    ui.selectable_value(key_screen_tmp, Code::F7, "F7");
+                    ui.selectable_value(key_screen_tmp, Code::F8, "F8");
+                    ui.selectable_value(key_screen_tmp, Code::F9, "F9");
+                    ui.selectable_value(key_screen_tmp, Code::F10, "F10");
+                    ui.selectable_value(key_screen_tmp, Code::F11, "F11");
+                    ui.selectable_value(key_screen_tmp, Code::F12, "F12");
+                    //... aggiungere altre keys nel caso sia necessario ...
+                });
+
+                ui.end_row();
+
+                ui.label("SAVE ");
+
+                egui::ComboBox::from_id_source("Choose modifier save")
+                .selected_text(format!("{:?}", modifier_save_tmp))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(modifier_save_tmp, Modifiers::CONTROL, "Ctrl");
+                    ui.selectable_value(modifier_save_tmp, Modifiers::SHIFT, "Shift");
+                    ui.selectable_value(modifier_save_tmp, Modifiers::ALT, "Alt");
+                });
+
+                egui::ComboBox::from_id_source("Choose Key save")
+                .selected_text(format!("{:?}", key_save_tmp))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(key_save_tmp, Code::KeyA, "KeyA");
+                    ui.selectable_value(key_save_tmp, Code::KeyB, "KeyB");
+                    ui.selectable_value(key_save_tmp, Code::KeyC, "KeyC");
+                    ui.selectable_value(key_save_tmp, Code::KeyD, "KeyD");
+                    ui.selectable_value(key_save_tmp, Code::KeyE, "KeyE");
+                    ui.selectable_value(key_save_tmp, Code::KeyF, "KeyF");
+                    ui.selectable_value(key_save_tmp, Code::KeyG, "KeyG");
+                    ui.selectable_value(key_save_tmp, Code::KeyH, "KeyH");
+                    ui.selectable_value(key_save_tmp, Code::KeyI, "KeyI");
+                    ui.selectable_value(key_save_tmp, Code::KeyJ, "KeyJ");
+                    ui.selectable_value(key_save_tmp, Code::KeyK, "KeyK");
+                    ui.selectable_value(key_save_tmp, Code::KeyL, "KeyL");
+                    ui.selectable_value(key_save_tmp, Code::KeyM, "KeyM");
+                    ui.selectable_value(key_save_tmp, Code::KeyN, "KeyN");
+                    ui.selectable_value(key_save_tmp, Code::KeyO, "KeyO");
+                    ui.selectable_value(key_save_tmp, Code::KeyP, "KeyP");
+                    ui.selectable_value(key_save_tmp, Code::KeyQ, "KeyQ");
+                    ui.selectable_value(key_save_tmp, Code::KeyR, "KeyR");
+                    ui.selectable_value(key_save_tmp, Code::KeyS, "KeyS");
+                    ui.selectable_value(key_save_tmp, Code::KeyT, "KeyT");
+                    ui.selectable_value(key_save_tmp, Code::KeyU, "KeyU");
+                    ui.selectable_value(key_save_tmp, Code::KeyV, "KeyV");
+                    ui.selectable_value(key_save_tmp, Code::KeyW, "KeyW");
+                    ui.selectable_value(key_save_tmp, Code::KeyX, "KeyX");
+                    ui.selectable_value(key_save_tmp, Code::KeyY, "KeyY");
+                    ui.selectable_value(key_save_tmp, Code::KeyZ, "KeyZ");
+                    ui.selectable_value(key_save_tmp, Code::F1, "F1");
+                    ui.selectable_value(key_save_tmp, Code::F2, "F2");
+                    ui.selectable_value(key_save_tmp, Code::F3, "F3");
+                    ui.selectable_value(key_save_tmp, Code::F5, "F5");
+                    ui.selectable_value(key_save_tmp, Code::F6, "F6");
+                    ui.selectable_value(key_save_tmp, Code::F7, "F7");
+                    ui.selectable_value(key_save_tmp, Code::F8, "F8");
+                    ui.selectable_value(key_save_tmp, Code::F9, "F9");
+                    ui.selectable_value(key_save_tmp, Code::F10, "F10");
+                    ui.selectable_value(key_save_tmp, Code::F11, "F11");
+                    ui.selectable_value(key_save_tmp, Code::F12, "F12");
+                    //... aggiungere altre keys nel caso sia necessario ...
+                });
+
+                ui.end_row();
+            });
+
+
+            ui.add_space(30.0);
+
+            if ui.button("Chiudi").clicked(){
+
+                for el in hotkeys_list.iter(){
+                    //non lascio che un utente modifichi i valori delle caselle e poi lasci il casino...
+                    //RIMETTO A POSTO...
+                    if el.2 == "Copy".to_string(){
+                        *modifier_copy_tmp = el.0.clone();
+                        *key_copy_tmp = el.1.clone();
+                    }
+                    else if el.2 == "Screen".to_string(){
+                        *modifier_screen_tmp = el.0.clone();
+                        *key_screen_tmp = el.1.clone();
+                    }
+                    else{ // el.2 == "Save".to_string()
+                        *modifier_save_tmp = el.0.clone();
+                        *key_save_tmp = el.1.clone();
+                    }
+                }
+                *is_window_open = false; 
+            }
+
+            //fai un check per verificare che tutte le hotkeys siano diverse
+            let mut set = HashSet::<(Modifiers, Code)>::new();
+            let curr_hotkey_list = vec![(*modifier_copy_tmp, *key_copy_tmp, "Copy"), (*modifier_screen_tmp, *key_screen_tmp, "Screen"), (*modifier_save_tmp, *key_save_tmp, "Save")];
+            let all_distinct = curr_hotkey_list.iter().all(|x| set.insert((x.0,x.1)));
+
+            ui.set_enabled(all_distinct && ((*modifier_copy != *modifier_copy_tmp) || (*modifier_screen != *modifier_screen_tmp) || (*modifier_save != *modifier_save_tmp) || (*key_copy != *key_copy_tmp) || (*key_screen != *key_screen_tmp) || (*key_save != *key_save_tmp)));
+            
+            if ui.button("Salva modifiche").clicked() {
+                *modifier_copy = *modifier_copy_tmp;
+                *modifier_save = *modifier_save_tmp;
+                *modifier_screen = *modifier_screen_tmp;
+                *key_copy = *key_copy_tmp;
+                *key_screen = *key_screen_tmp;
+                *key_save = *key_save_tmp;
+
                 //genera la hotkey
-                let hotkey = HotKey::new(Some(*modifier), *key);
-                //e poi la registri
-                ((*manager).0).register(hotkey).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager didn't have the Default trait
-                *is_window_open = false;             
+                if all_distinct {
+                    for el in hotkeys_list.iter_mut(){
+                        if el.2 == "Copy".to_string(){
+                            if el.0 != *modifier_copy || el.1 != *key_copy{
+                                let mut hotkey_copy = HotKey::new(Some(*modifier_copy), *key_copy);
+                                let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
+                                ((*manager).0).unregister(hotkey_to_delete).unwrap();
+                                ((*manager).0).register(hotkey_copy).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
+    
+                                el.0 = *modifier_copy;
+                                el.1 = *key_copy;
+                            }
+                        }
+                        else if el.2 == "Screen".to_string(){
+                            if el.0 != *modifier_screen || el.1 != *key_screen{
+                                let mut hotkey_screen = HotKey::new(Some(*modifier_screen), *key_screen);
+                                let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
+                                ((*manager).0).unregister(hotkey_to_delete).unwrap();
+                                ((*manager).0).register(hotkey_screen).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
+    
+                                el.0 = *modifier_screen;
+                                el.1 = *key_screen;
+                            }
+                        }
+                        else { //if el.2 == "Save".to_string()
+                            if el.0 != *modifier_save || el.1 != *key_save{
+                                let mut hotkey_save = HotKey::new(Some(*modifier_save), *key_save);
+                                let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
+                                ((*manager).0).unregister(hotkey_to_delete).unwrap();
+                                ((*manager).0).register(hotkey_save).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
+    
+                                el.0 = *modifier_save;
+                                el.1 = *key_save;
+                            }
+                        }
+                    }
+                    *is_window_open = false;
+                }
             }
         });
 }
+
+fn hotkey_to_String(modifier: Modifiers, key: Code) -> String{
+    let mut mystr = String::from("");
+
+    match modifier {
+        Modifiers::ALT => mystr.push_str("ALT + "),
+        Modifiers::CONTROL => mystr.push_str("CONTROL + "), 
+        Modifiers::SHIFT => mystr.push_str("SHIFT + "),
+        _ => mystr.push_str(""),
+    }
+
+    match key {
+        Code::KeyA => mystr.push_str("A"),
+        Code::KeyB => mystr.push_str("B"),
+        Code::KeyC => mystr.push_str("C"),
+        Code::KeyD => mystr.push_str("D"),
+        Code::KeyE => mystr.push_str("E"),
+        Code::KeyF => mystr.push_str("F"),
+        Code::KeyG => mystr.push_str("G"),
+        Code::KeyH => mystr.push_str("H"),
+        Code::KeyI => mystr.push_str("I"),
+        Code::KeyJ => mystr.push_str("J"),
+        Code::KeyK => mystr.push_str("K"),
+        Code::KeyL => mystr.push_str("L"),
+        Code::KeyM => mystr.push_str("M"),
+        Code::KeyN => mystr.push_str("N"),
+        Code::KeyO => mystr.push_str("O"),
+        Code::KeyP => mystr.push_str("P"),
+        Code::KeyQ => mystr.push_str("Q"),
+        Code::KeyR => mystr.push_str("R"),
+        Code::KeyS => mystr.push_str("S"),
+        Code::KeyT => mystr.push_str("T"),
+        Code::KeyU => mystr.push_str("U"),
+        Code::KeyV => mystr.push_str("V"),
+        Code::KeyW => mystr.push_str("W"),
+        Code::KeyX => mystr.push_str("X"),
+        Code::KeyY => mystr.push_str("Y"),
+        Code::KeyZ => mystr.push_str("Z"),
+        Code::F1 => mystr.push_str("F1"),
+        Code::F2 => mystr.push_str("F2"),
+        Code::F3 => mystr.push_str("F3"),
+        Code::F5 => mystr.push_str("F5"),
+        Code::F6 => mystr.push_str("F6"),
+        Code::F7 => mystr.push_str("F7"),
+        Code::F8 => mystr.push_str("F8"),
+        Code::F9 => mystr.push_str("F9"),
+        Code::F10 => mystr.push_str("F10"),
+        Code::F11 => mystr.push_str("F11"),
+        Code::F12 => mystr.push_str("F12"),
+        _ => mystr.push_str(""),
+    }
+
+    return mystr;
+}
+
+fn show_popup2(ctx: &egui::Context, is_window_open: &mut bool, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String) {
+
+    let window_size = egui::vec2(0.0, 0.0);
+
+    egui::Window::new("Custom saving")
+        .anchor(egui::Align2::CENTER_CENTER, window_size)
+        .show(ctx, |ui| {
+            egui::ComboBox::from_label("Choose format")
+                .selected_text(format!("{}", file_format_tmp))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(file_format_tmp, ".png".to_string(), "PNG");
+                    ui.selectable_value(file_format_tmp, ".jpeg".to_string(), "JPEG");
+                    ui.selectable_value(file_format_tmp, ".gif".to_string(), "GIF");
+                    ui.selectable_value(file_format_tmp, ".webp".to_string(), "WEBP");
+                    ui.selectable_value(file_format_tmp, ".pnm".to_string(), "PNM");
+                    ui.selectable_value(file_format_tmp, ".tiff".to_string(), "TIFF");
+                    ui.selectable_value(file_format_tmp, ".tga".to_string(), "TGA");
+                    ui.selectable_value(file_format_tmp, ".dds".to_string(), "DDS");
+                    ui.selectable_value(file_format_tmp, ".bmp".to_string(), "BMP");
+                    ui.selectable_value(file_format_tmp, ".ico".to_string(), "ICO");
+                    ui.selectable_value(file_format_tmp, ".hdr".to_string(), "HDR");
+                    ui.selectable_value(file_format_tmp, ".openexr".to_string(), "OPENEXR");
+                    ui.selectable_value(file_format_tmp, ".farbfeld".to_string(), "FARBFELD");
+                    ui.selectable_value(file_format_tmp, ".avif".to_string(), "AVIF");
+                    ui.selectable_value(file_format_tmp, ".qoi".to_string(), "QOI");
+                });
+
+                ui.add_space(10.0);
+
+                Grid::new("123").show(ui, |ui| {
+                    ui.label("DEFAULT PATH");
+                    ui.end_row();
+
+                    let button_text1 = "Choose default path";
+                    let button_text2 = "Change default path";
+                    //let button_text1 = "Choose file name";
+                    //let button_text2 = "Change file name";
+                    let button_text = if *save_path_tmp == PathBuf::default() {button_text1} else {button_text2};
+
+                    if ui.button(button_text).clicked(){
+                        *save_path_tmp = FileDialog::new()
+                            .set_directory("/")
+                            .pick_folder()
+                            .unwrap();
+                    }
+
+                    ui.end_row();
+                    ui.end_row();
+
+                    ui.label("CHOOSE FILE NAME");
+                    ui.end_row();
+                    ui.add(egui::TextEdit::singleline(name_convention_tmp));
+                    //aggiungere la parte relativa alle convenzioni sul nome del file da salvare (con auto incremento)
+                });
+
+                ui.add_space(30.0);
+
+                if ui.button("Chiudi").clicked(){
+                    *save_path_tmp = save_path.clone();
+                    *file_format_tmp = file_format.clone();
+                    *name_convention_tmp = name_convention.clone();
+                    *is_window_open = false; 
+                }
+
+                ui.set_enabled((*save_path != save_path_tmp.clone()) || (*file_format != file_format_tmp.clone()) || (*name_convention != *name_convention_tmp));
+
+                if ui.button("Salva modifiche").clicked(){
+                    *save_path = save_path_tmp.clone();
+                    *file_format = file_format_tmp.clone(); 
+                    *name_convention = name_convention_tmp.clone();
+                    *is_window_open = false; 
+                }
+            });
+}
+
