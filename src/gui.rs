@@ -31,18 +31,16 @@ use std::io::Cursor;
 use image::io::Reader as ImageReader;
 
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>,  is_popup_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, frame: &mut eframe::Frame, stroke: &mut Stroke, points: &mut Vec<Vec<Pos2>>, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, file_format: &mut String, save_path: &mut PathBuf, is_popup_open2: &mut bool, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code,  file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code, name_convention: &mut String, name_convention_tmp: &mut String){
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
-            ui.set_enabled(!(*is_popup_open) && !(*is_popup_open2)); 
-
             menu::bar(ui, |ui| {
                 ui.menu_button("Settings", |ui| {
                     if ui.button("Custom Hotkey").clicked() {
-                        *is_popup_open = true;
+                        *schermata = Schermata::Setting_Hotkey;
                     }
 
                     if ui.button("Saving settings").clicked() {
-                        *is_popup_open2 = true;
+                        *schermata = Schermata::Setting_Saving;
                     }
                 });
 
@@ -97,16 +95,6 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                 });
             });
     });    
-     
-
-    if *is_popup_open {
-        show_popup(is_popup_open, manager, modifier_copy, key_copy, modifier_screen, key_screen, modifier_save, key_save,  hotkeys_list, ctx, modifier_copy_tmp, key_copy_tmp, modifier_screen_tmp, key_screen_tmp, modifier_save_tmp, key_save_tmp);
-    }
-
-    if *is_popup_open2 {
-        show_popup2(ctx, is_popup_open2, file_format, save_path, file_format_tmp, save_path_tmp, name_convention, name_convention_tmp);
-    }
-
 }
 
 pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, points: &mut Vec<Vec<Pos2>>, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
@@ -156,26 +144,23 @@ pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<Text
     });
 }
 
-
-fn set_image_gui_visible (window_size :eframe::egui::Vec2, prop :f32) -> eframe::egui::Vec2 {
-    let mut  size = eframe::egui::Vec2::new(0.0, 0.0);
-    size.x = window_size.x * 0.8;
-    size.y = size.x / prop;
-    if size.y >= window_size.y * 0.8 {
-        size.y = window_size.y * 0.8;
-        size.x = size.y * prop;
-    }
-    size
-}
-
-fn show_popup(is_window_open: &mut bool, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, ctx: &egui::Context, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code) {
-
+pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code){
     let window_size = egui::vec2(0.0, 0.0);
-    let button_color = Color32::from_rgb(255, 0, 0);
 
-    egui::Window::new("Custom Hotkey")
-        .anchor(egui::Align2::CENTER_CENTER, window_size)
-        .show(ctx, |ui| {
+    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
+        menu::bar(ui, |ui| {
+            ui.menu_button("Settings", |ui| {
+                if ui.button("Custom Hotkey").clicked() {
+                    *schermata = Schermata::Setting_Hotkey;
+                }
+
+                if ui.button("Saving settings").clicked() {
+                    *schermata = Schermata::Setting_Saving;
+                }
+            });
+        });
+
+        ui.add_space(20.0);
 
             Grid::new("miao").show(ui, |ui| {
                 ui.label("COPY ");
@@ -365,7 +350,7 @@ fn show_popup(is_window_open: &mut bool, manager: &mut MyGlobalHotKeyManager, mo
                         *key_save_tmp = el.1.clone();
                     }
                 }
-                *is_window_open = false; 
+                *schermata = Schermata::Home; 
             }
 
             //fai un check per verificare che tutte le hotkeys siano diverse
@@ -420,73 +405,31 @@ fn show_popup(is_window_open: &mut bool, manager: &mut MyGlobalHotKeyManager, mo
                             }
                         }
                     }
-                    *is_window_open = false;
+                    *schermata = Schermata::Home; 
                 }
             }
         });
 }
 
-fn hotkey_to_String(modifier: Modifiers, key: Code) -> String{
-    let mut mystr = String::from("");
-
-    match modifier {
-        Modifiers::ALT => mystr.push_str("ALT + "),
-        Modifiers::CONTROL => mystr.push_str("CONTROL + "), 
-        Modifiers::SHIFT => mystr.push_str("SHIFT + "),
-        _ => mystr.push_str(""),
-    }
-
-    match key {
-        Code::KeyA => mystr.push_str("A"),
-        Code::KeyB => mystr.push_str("B"),
-        Code::KeyC => mystr.push_str("C"),
-        Code::KeyD => mystr.push_str("D"),
-        Code::KeyE => mystr.push_str("E"),
-        Code::KeyF => mystr.push_str("F"),
-        Code::KeyG => mystr.push_str("G"),
-        Code::KeyH => mystr.push_str("H"),
-        Code::KeyI => mystr.push_str("I"),
-        Code::KeyJ => mystr.push_str("J"),
-        Code::KeyK => mystr.push_str("K"),
-        Code::KeyL => mystr.push_str("L"),
-        Code::KeyM => mystr.push_str("M"),
-        Code::KeyN => mystr.push_str("N"),
-        Code::KeyO => mystr.push_str("O"),
-        Code::KeyP => mystr.push_str("P"),
-        Code::KeyQ => mystr.push_str("Q"),
-        Code::KeyR => mystr.push_str("R"),
-        Code::KeyS => mystr.push_str("S"),
-        Code::KeyT => mystr.push_str("T"),
-        Code::KeyU => mystr.push_str("U"),
-        Code::KeyV => mystr.push_str("V"),
-        Code::KeyW => mystr.push_str("W"),
-        Code::KeyX => mystr.push_str("X"),
-        Code::KeyY => mystr.push_str("Y"),
-        Code::KeyZ => mystr.push_str("Z"),
-        Code::F1 => mystr.push_str("F1"),
-        Code::F2 => mystr.push_str("F2"),
-        Code::F3 => mystr.push_str("F3"),
-        Code::F5 => mystr.push_str("F5"),
-        Code::F6 => mystr.push_str("F6"),
-        Code::F7 => mystr.push_str("F7"),
-        Code::F8 => mystr.push_str("F8"),
-        Code::F9 => mystr.push_str("F9"),
-        Code::F10 => mystr.push_str("F10"),
-        Code::F11 => mystr.push_str("F11"),
-        Code::F12 => mystr.push_str("F12"),
-        _ => mystr.push_str(""),
-    }
-
-    return mystr;
-}
-
-fn show_popup2(ctx: &egui::Context, is_window_open: &mut bool, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String) {
-
+pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String){
     let window_size = egui::vec2(0.0, 0.0);
 
-    egui::Window::new("Custom saving")
-        .anchor(egui::Align2::CENTER_CENTER, window_size)
-        .show(ctx, |ui| {
+    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
+
+        menu::bar(ui, |ui| {
+            ui.menu_button("Settings", |ui| {
+                if ui.button("Custom Hotkey").clicked() {
+                    *schermata = Schermata::Setting_Hotkey;
+                }
+
+                if ui.button("Saving settings").clicked() {
+                    *schermata = Schermata::Setting_Saving;
+                }
+            });
+        });
+
+        ui.add_space(20.0);
+        
             egui::ComboBox::from_label("Choose format")
                 .selected_text(format!("{}", file_format_tmp))
                 .show_ui(ui, |ui| {
@@ -541,7 +484,7 @@ fn show_popup2(ctx: &egui::Context, is_window_open: &mut bool, file_format: &mut
                     *save_path_tmp = save_path.clone();
                     *file_format_tmp = file_format.clone();
                     *name_convention_tmp = name_convention.clone();
-                    *is_window_open = false; 
+                    *schermata = Schermata::Home;
                 }
 
                 ui.set_enabled((*save_path != save_path_tmp.clone()) || (*file_format != file_format_tmp.clone()) || (*name_convention != *name_convention_tmp));
@@ -550,8 +493,74 @@ fn show_popup2(ctx: &egui::Context, is_window_open: &mut bool, file_format: &mut
                     *save_path = save_path_tmp.clone();
                     *file_format = file_format_tmp.clone(); 
                     *name_convention = name_convention_tmp.clone();
-                    *is_window_open = false; 
+                    *schermata = Schermata::Home;
                 }
             });
+}
+
+
+fn set_image_gui_visible (window_size :eframe::egui::Vec2, prop :f32) -> eframe::egui::Vec2 {
+    let mut  size = eframe::egui::Vec2::new(0.0, 0.0);
+    size.x = window_size.x * 0.8;
+    size.y = size.x / prop;
+    if size.y >= window_size.y * 0.8 {
+        size.y = window_size.y * 0.8;
+        size.x = size.y * prop;
+    }
+    size
+}
+
+fn hotkey_to_String(modifier: Modifiers, key: Code) -> String{
+    let mut mystr = String::from("");
+
+    match modifier {
+        Modifiers::ALT => mystr.push_str("ALT + "),
+        Modifiers::CONTROL => mystr.push_str("CONTROL + "), 
+        Modifiers::SHIFT => mystr.push_str("SHIFT + "),
+        _ => mystr.push_str(""),
+    }
+
+    match key {
+        Code::KeyA => mystr.push_str("A"),
+        Code::KeyB => mystr.push_str("B"),
+        Code::KeyC => mystr.push_str("C"),
+        Code::KeyD => mystr.push_str("D"),
+        Code::KeyE => mystr.push_str("E"),
+        Code::KeyF => mystr.push_str("F"),
+        Code::KeyG => mystr.push_str("G"),
+        Code::KeyH => mystr.push_str("H"),
+        Code::KeyI => mystr.push_str("I"),
+        Code::KeyJ => mystr.push_str("J"),
+        Code::KeyK => mystr.push_str("K"),
+        Code::KeyL => mystr.push_str("L"),
+        Code::KeyM => mystr.push_str("M"),
+        Code::KeyN => mystr.push_str("N"),
+        Code::KeyO => mystr.push_str("O"),
+        Code::KeyP => mystr.push_str("P"),
+        Code::KeyQ => mystr.push_str("Q"),
+        Code::KeyR => mystr.push_str("R"),
+        Code::KeyS => mystr.push_str("S"),
+        Code::KeyT => mystr.push_str("T"),
+        Code::KeyU => mystr.push_str("U"),
+        Code::KeyV => mystr.push_str("V"),
+        Code::KeyW => mystr.push_str("W"),
+        Code::KeyX => mystr.push_str("X"),
+        Code::KeyY => mystr.push_str("Y"),
+        Code::KeyZ => mystr.push_str("Z"),
+        Code::F1 => mystr.push_str("F1"),
+        Code::F2 => mystr.push_str("F2"),
+        Code::F3 => mystr.push_str("F3"),
+        Code::F5 => mystr.push_str("F5"),
+        Code::F6 => mystr.push_str("F6"),
+        Code::F7 => mystr.push_str("F7"),
+        Code::F8 => mystr.push_str("F8"),
+        Code::F9 => mystr.push_str("F9"),
+        Code::F10 => mystr.push_str("F10"),
+        Code::F11 => mystr.push_str("F11"),
+        Code::F12 => mystr.push_str("F12"),
+        _ => mystr.push_str(""),
+    }
+
+    return mystr;
 }
 
