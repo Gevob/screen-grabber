@@ -19,8 +19,8 @@ fn main() {
     
     //let mut ctx = egui::Context::default();
     let native_options = eframe::NativeOptions {
-        initial_window_size: Some([400.0, 250.0].into()),
-        min_window_size: Some([300.0, 200.0].into()),
+        initial_window_size: Some([500.0, 400.0].into()),
+        min_window_size: Some([500.0, 400.0].into()),
         resizable: true,
         
         ..Default::default()
@@ -96,7 +96,6 @@ struct Windows {
     save_path: PathBuf,
     name_convention: String,
 
-
 }
 
 #[derive(Default,Debug)]
@@ -104,6 +103,8 @@ pub enum Schermata {
     #[default]
     Home,
     Edit,
+    Setting_Hotkey,
+    Setting_Saving,
 }
 //indica il tipo di editing
 #[derive(Default,Debug)]
@@ -179,18 +180,33 @@ impl eframe::App for Windows {
 
     match self.schermata {
         Schermata::Home => {
-            if frame.info().window_info.size != [400.0, 250.0].into(){
-                frame.set_window_size([400.0, 250.0].into());
+            if frame.info().window_info.size != [400.0, 300.0].into(){
+                frame.set_window_size([400.0, 300.0].into());
                 self.change_size = true;
             }
-            gui::home(ctx,&mut self.schermata, &mut self.image, &mut self.texture, &mut self.is_popup_open, &mut self.manager, &mut self.modifier_copy,  &mut self.key_copy, frame, &mut self.stroke, &mut self.points, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.is_popup_open2, &mut self.modifier_screen, &mut self.key_screen, &mut self.modifier_save, &mut self.key_save, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.modifier_copy_tmp,  &mut self.key_copy_tmp, &mut self.modifier_screen_tmp, &mut self.key_screen_tmp, &mut self.modifier_save_tmp, &mut self.key_save_tmp, &mut self.name_convention, &mut self.name_convention_tmp);
+            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
         },
         Schermata::Edit => {
-            if frame.info().window_info.size != [700.0, 520.0].into() && self.change_size{
-                frame.set_window_size([700.0, 520.0].into());
+            if frame.info().window_info.size != [800.0, 620.0].into() && self.change_size{
+                frame.set_window_size([800.0, 620.0].into());
                 self.change_size = false;
             }
             gui::edit(ctx, &mut self.stroke, &mut self.texture, frame, &mut self.points, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
+        },
+        Schermata::Setting_Hotkey => {
+            if frame.info().window_info.size != [400.0, 300.0].into(){
+                frame.set_window_size([400.0, 300.0].into());
+                self.change_size = true;
+            }
+            gui::setting_hotkey(ctx, &mut self.schermata, &mut self.manager, &mut self.modifier_copy, &mut self.key_copy, &mut self.modifier_screen, &mut self.key_screen, &mut self.modifier_save, &mut self.key_save, &mut self.hotkeys_list, &mut self.modifier_copy_tmp, &mut self.key_copy_tmp, &mut self.modifier_screen_tmp, &mut self.key_screen_tmp, &mut self.modifier_save_tmp, &mut self.key_save_tmp);
+        },
+        Schermata::Setting_Saving => {
+            if frame.info().window_info.size != [400.0, 300.0].into(){
+                frame.set_window_size([400.0, 300.0].into());
+                self.change_size = true;
+            }
+            gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp)
+
         },
     }
 
