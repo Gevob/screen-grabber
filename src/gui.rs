@@ -466,7 +466,7 @@ pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_forma
                         let p = FileDialog::new().set_directory("/").pick_folder();
                         if(p.is_none()) { }
                         else{
-                            *save_path_tmp=p.unwrap();
+                            *save_path_tmp=p.unwrap()
                         }                         
                     }
 
