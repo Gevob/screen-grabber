@@ -463,10 +463,11 @@ pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_forma
                     let button_text = if *save_path_tmp == PathBuf::default() {button_text1} else {button_text2};
 
                     if ui.button(button_text).clicked(){
-                        *save_path_tmp = FileDialog::new()
-                            .set_directory("/")
-                            .pick_folder()
-                            .unwrap();
+                        let p = FileDialog::new().set_directory("/").pick_folder();
+                        if(p.is_none()) { }
+                        else{
+                            *save_path_tmp=p.unwrap();
+                        }                         
                     }
 
                     ui.end_row();
