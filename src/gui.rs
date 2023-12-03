@@ -34,17 +34,20 @@ use image::io::Reader as ImageReader;
 pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
             menu::bar(ui, |ui| {
+
                 ui.menu_button("Settings", |ui| {
-                    if ui.button("Custom Hotkey").clicked() {
+                    if ui.button("Custom Hotkey").on_hover_text("Take a Screenshot").clicked() {
                         *schermata = Schermata::Setting_Hotkey;
                     }
 
                     if ui.button("Saving settings").clicked() {
                         *schermata = Schermata::Setting_Saving;
                     }
-                });
+                }).response.on_hover_text("Change your Settings");; //.on_hover_text("Take a Screenshot");
 
-                if ui.button("Screenshots").clicked() {
+
+
+                if ui.button("Screenshots").on_hover_text("Take a Screenshot").clicked() {
                     *image = screen::screenshot().unwrap();
                     let flat_image = image.as_flat_samples();
                     let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize],flat_image.samples);
