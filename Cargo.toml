@@ -16,6 +16,8 @@ global-hotkey = "0.2.3"
 rfd = "0.12.1"
 catppuccin-egui = "3.1.0"
 chrono = "0.4.31"
+winapi = { version = "0.3", features = ["winuser"] }
+arboard = "3.3.0"
 
 
 [profile.dev]

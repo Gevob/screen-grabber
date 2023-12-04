@@ -10,11 +10,17 @@ use eframe::egui;
 use eframe::egui::TextureHandle;
 use eframe::egui::Pos2;
 use eframe::egui::Stroke;
-use ::egui::Image;
-use ::egui::ImageData;
+use ::egui::{Image, ImageData};
 use image::RgbaImage;
 use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Modifiers, Code}};
 use egui::epaint::image::ColorImage;
+use std::ptr;
+use winapi::um::winuser::{GetForegroundWindow, ShowWindow, SW_HIDE, SW_SHOW};
+use std::thread::sleep;
+use std::time::Duration;
+use arboard::{Clipboard, ImageData as OtherImageData};
+use image::DynamicImage;
+
 fn main() {
     
     //let mut ctx = egui::Context::default();
@@ -211,11 +217,35 @@ impl eframe::App for Windows {
     }
 
     if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
-        self.image = screen::screenshot().unwrap();
-        let flat_image = self.image.as_flat_samples();
-        let color_image2 = egui::ColorImage::from_rgba_unmultiplied([self.image.width() as usize, self.image.height() as usize],flat_image.samples);
-        let image_data: egui::ImageData = egui::ImageData::from(color_image2);
-        self.texture = Some(ctx.load_texture("screen", image_data, Default::default()));
+        println!("{:?}",event.id());
+        //println!("{:?}",self.image.width());
+        //println!("{:?}",self.image.height());
+            if(event.id() == 869406661) {
+                unsafe {
+                    // Find the window by class name
+                    let hwnd = GetForegroundWindow();
+                    // Hide the window if it is found
+                    if hwnd != ptr::null_mut() {
+                        ShowWindow(hwnd, SW_HIDE);
+                        sleep(Duration::from_millis(500));
+                        self.image = screen::screenshot().unwrap();
+                        ShowWindow(hwnd, SW_SHOW);
+                    }
+                }
+                let flat_image = self.image.as_flat_samples();
+                let color_image2 = egui::ColorImage::from_rgba_unmultiplied([self.image.width() as usize, self.image.height() as usize],flat_image.samples);
+                let image_data: egui::ImageData = egui::ImageData::from(color_image2);
+                self.texture = Some(ctx.load_texture("screen", image_data, Default::default()));
+            }
+            else if(event.id() == 538883802 && !(self.texture.is_none())) {
+                // Copy the image to the clipboard
+                let mut ctx_clip = Clipboard::new().unwrap();
+                let clipboard_image = DynamicImage::ImageRgba8(self.image.clone());
+                let image_bytes = clipboard_image.into_bytes();
+                #[rustfmt::skip]
+                let img_data = OtherImageData { width: self.image.width() as usize, height: self.image.height() as usize, bytes: image_bytes.into() };
+                ctx_clip.set_image(img_data).unwrap();
+            }
 
         if (!self.is_popup_open && !self.is_popup_open2){
             self.schermata = Schermata::Edit;

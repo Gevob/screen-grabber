@@ -29,6 +29,11 @@ use rfd::FileDialog;
 use chrono::prelude::*;
 use std::io::Cursor;
 use image::io::Reader as ImageReader;
+use std::ptr;
+use winapi::um::winuser::{GetForegroundWindow, ShowWindow, SW_HIDE, SW_SHOW};
+use std::thread::sleep;
+use std::time::Duration;
+use arboard::{Clipboard, ImageData};
 
 
 pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
@@ -36,11 +41,11 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
             menu::bar(ui, |ui| {
 
                 ui.menu_button("Settings", |ui| {
-                    if ui.button("Custom Hotkey").on_hover_text("Take a Screenshot").clicked() {
+                    if ui.button("Custom Hotkey").on_hover_text("Customize your Hotkeys").clicked() {
                         *schermata = Schermata::Setting_Hotkey;
                     }
 
-                    if ui.button("Saving settings").clicked() {
+                    if ui.button("Saving settings").on_hover_text("Customize default saving options").clicked() {
                         *schermata = Schermata::Setting_Saving;
                     }
                 }).response.on_hover_text("Change your Settings");; //.on_hover_text("Take a Screenshot");
@@ -48,7 +53,17 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
 
 
                 if ui.button("Screenshots").on_hover_text("Take a Screenshot").clicked() {
-                    *image = screen::screenshot().unwrap();
+                    unsafe {
+                        // Find the window by class name
+                        let hwnd = GetForegroundWindow();
+                        // Hide the window if it is found
+                        if hwnd != ptr::null_mut() {
+                            ShowWindow(hwnd, SW_HIDE);
+                            sleep(Duration::from_millis(500));
+                            *image = screen::screenshot().unwrap();
+                            ShowWindow(hwnd, SW_SHOW);
+                        }
+                    }
                     let flat_image = image.as_flat_samples();
                     let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize],flat_image.samples);
                     let image_data = egui::ImageData::from(color_image2);
@@ -101,6 +116,7 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
 }
 
 pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, points: &mut Vec<Vec<Pos2>>, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
+    //sleep(Duration::from_millis(200));
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
         menu::bar(ui, |ui| { 
             ui.color_edit_button_srgba(&mut stroke.color);
@@ -109,7 +125,7 @@ pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<Text
             if ui.button("Discard").clicked() {
                 *schermata = Schermata::Home;
                 //elimina anche gli edit
-                //e setta a null la textureHandle
+                *texture = None; //e setta a null la textureHandle
             }
 
             if ui.button("Save").clicked(){
@@ -121,29 +137,42 @@ pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<Text
                 let output_path = format!("{}\\{}_{}{}", save_path.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
                 dynamic_image.save_with_format(output_path, ImageFormat::Jpeg).expect("Failed to save image");
             }
+
+            if ui.button("Copy").on_hover_text("Copy the Screenshot to Clipboard").clicked() {
+                // Copy the image to the clipboard
+                let mut ctx_clip = Clipboard::new().unwrap();
+                let clipboard_image = DynamicImage::ImageRgba8(rgba_image.clone());
+                let image_bytes = clipboard_image.into_bytes();
+                #[rustfmt::skip]
+                let img_data = ImageData { width: rgba_image.width() as usize, height: rgba_image.height() as usize, bytes: image_bytes.into() };
+                ctx_clip.set_image(img_data).unwrap();
+            }
         });
 
         ui.add_space(30.0);
-
-        ui.centered_and_justified(|ui| {
-                let mut edited_image = egui::Image::new(
-                    texture.as_ref().unwrap().id(),
-                    set_image_gui_visible(
-                        frame.info().window_info.size,
-                        texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y,
-                    ),
-                );
-                let response = ui.add(edited_image);
         
-                let image_center = response.rect.center();
-                let area_pos = image_center - edited_image.size() * 0.5;
-        
-                egui::Area::new("my_area")
-                    .default_pos(area_pos)
-                    .show(ui.ctx(), |ui| {
-                        screen::ui_content(ui, points, stroke, response, edited_image.size());
-                    });
-        });
+        if !(texture.is_none()) { //controllo che la texture non sia None
+            ui.centered_and_justified(|ui| {
+                    let mut edited_image = egui::Image::new(
+                        //texture.as_ref().map(|t| t.id()).unwrap_or(eframe::egui::TextureId::Managed(0)),
+                        texture.as_ref().unwrap().id(),
+                        set_image_gui_visible(
+                            frame.info().window_info.size,
+                            texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y,
+                        ),
+                    );
+                    let response = ui.add(edited_image);
+            
+                    let image_center = response.rect.center();
+                    let area_pos = image_center - edited_image.size() * 0.5;
+            
+                    egui::Area::new("my_area")
+                        .default_pos(area_pos)
+                        .show(ui.ctx(), |ui| {
+                            screen::ui_content(ui, points, stroke, response, edited_image.size());
+                        });
+            });
+        }
     });
 }
 
