@@ -4,16 +4,9 @@ mod screen;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use ::egui::Color32;
-use egui::style::Style;
-use eframe::egui;
-use eframe::egui::TextureHandle;
-use eframe::egui::Pos2;
-use eframe::egui::Stroke;
-use ::egui::{Image, ImageData};
+use egui::*;
 use image::RgbaImage;
 use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Modifiers, Code}};
-use egui::epaint::image::ColorImage;
 use std::ptr;
 use winapi::um::winuser::{GetForegroundWindow, ShowWindow, SW_HIDE, SW_SHOW};
 use std::thread::sleep;
@@ -25,10 +18,12 @@ fn main() {
     
     //let mut ctx = egui::Context::default();
     let native_options = eframe::NativeOptions {
-        initial_window_size: Some([500.0, 400.0].into()),
-        min_window_size: Some([500.0, 400.0].into()),
-        resizable: true,
-        
+        //initial_window_size: Some([500.0, 400.0].into()),
+        //min_window_size: Some([500.0, 400.0].into()),
+        //resizable: true,
+        viewport: egui::ViewportBuilder::default()
+         .with_inner_size([500.0, 400.0])
+         .with_resizable(true),
         ..Default::default()
     };
     /*
@@ -154,7 +149,7 @@ impl Windows {
 
 
         Self {
-            stroke: Stroke::new(1.0, eframe::egui::Color32::from_rgba_premultiplied(200, 195, 25, 255)),
+            stroke: Stroke::new(1.0, egui::Color32::from_rgba_premultiplied(200, 195, 25, 255)),
             manager: manager,
             change_size: false, 
             hotkeys_list: hotkeys_list,
@@ -180,35 +175,35 @@ impl Windows {
 }
 
 impl eframe::App for Windows {
-   fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+   fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
     eframe::egui::Context::set_pixels_per_point(ctx, 1.0);
     
 
     match self.schermata {
-        Schermata::Home => {
-            if frame.info().window_info.size != [400.0, 300.0].into(){
-                frame.set_window_size([400.0, 300.0].into());
+        Schermata::Home => { // frame.info.window_size substituted by ctx.screen_rect().size() 
+            if ctx.screen_rect().size() != [400.0, 300.0].into(){
+                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into()))); //set_window_size substituted by ctx.send....
                 self.change_size = true;
             }
             gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
         },
         Schermata::Edit => {
-            if frame.info().window_info.size != [800.0, 620.0].into() && self.change_size{
-                frame.set_window_size([800.0, 620.0].into());
+            if ctx.screen_rect().size() != [800.0, 620.0].into() && self.change_size{
+                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([800.0, 620.0].into())));
                 self.change_size = false;
             }
             gui::edit(ctx, &mut self.stroke, &mut self.texture, frame, &mut self.points, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
         },
         Schermata::Setting_Hotkey => {
-            if frame.info().window_info.size != [400.0, 300.0].into(){
-                frame.set_window_size([400.0, 300.0].into());
+            if ctx.screen_rect().size() != [400.0, 300.0].into(){
+                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
                 self.change_size = true;
             }
             gui::setting_hotkey(ctx, &mut self.schermata, &mut self.manager, &mut self.modifier_copy, &mut self.key_copy, &mut self.modifier_screen, &mut self.key_screen, &mut self.modifier_save, &mut self.key_save, &mut self.hotkeys_list, &mut self.modifier_copy_tmp, &mut self.key_copy_tmp, &mut self.modifier_screen_tmp, &mut self.key_screen_tmp, &mut self.modifier_save_tmp, &mut self.key_save_tmp);
         },
         Schermata::Setting_Saving => {
-            if frame.info().window_info.size != [400.0, 300.0].into(){
-                frame.set_window_size([400.0, 300.0].into());
+            if ctx.screen_rect().size() != [400.0, 300.0].into(){
+                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
                 self.change_size = true;
             }
             gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp)
@@ -255,3 +250,4 @@ impl eframe::App for Windows {
         //println!("proporzione: {:?}",egui::Context::pixels_per_point(ctx));
    }
 }
+
