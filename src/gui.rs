@@ -1,24 +1,16 @@
 
-use core::panic;
 use std::collections::HashSet;
 use std::path::PathBuf;
-
-use eframe::egui;
-use eframe::epaint::ColorImage;
-use eframe::epaint::PathShape;
-//use ::egui::Shape;
-use ::egui::Vec2;
-
-use eframe::egui::Shape::Path;
-use ::egui::vec2;
+use egui::Image;
 use egui::{menu, Button, Color32};
 use image::DynamicImage;
+use egui::*;
 use image::ImageBuffer;
 use image::ImageOutputFormat;
 use image::RgbaImage;
 use image::GenericImageView;
-use eframe::egui::Pos2;
-use eframe::egui::TextureHandle;
+//use eframe::egui;
+//use eframe::egui::TextureHandle;
 use crate::Schermata;
 use crate::screen;
 use crate::MyGlobalHotKeyManager;
@@ -120,7 +112,7 @@ pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<Text
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
         menu::bar(ui, |ui| { 
             ui.color_edit_button_srgba(&mut stroke.color);
-            ui.add(eframe::egui::Slider::new(&mut stroke.width, 1.0..=8.0).integer());   
+            ui.add(egui::Slider::new(&mut stroke.width, 1.0..=8.0).integer());   
 
             if ui.button("Discard").clicked() {
                 *schermata = Schermata::Home;
@@ -150,26 +142,18 @@ pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<Text
         });
 
         ui.add_space(30.0);
-        
-        if !(texture.is_none()) { //controllo che la texture non sia None
+        if !(texture.is_none()) { 
             ui.centered_and_justified(|ui| {
-                    let mut edited_image = egui::Image::new(
-                        //texture.as_ref().map(|t| t.id()).unwrap_or(eframe::egui::TextureId::Managed(0)),
-                        texture.as_ref().unwrap().id(),
-                        set_image_gui_visible(
-                            frame.info().window_info.size,
-                            texture.as_ref().unwrap().size_vec2().x / texture.as_ref().unwrap().size_vec2().y,
-                        ),
-                    );
-                    let response = ui.add(edited_image);
-            
-                    let image_center = response.rect.center();
-                    let area_pos = image_center - edited_image.size() * 0.5;
-            
+                let mut edited_image = Image::new(texture.as_ref().unwrap()).max_size(ui.available_size()).maintain_aspect_ratio(true).ui(ui);
+                    let texture_rect = egui::Rect::from_min_size(Pos2::ZERO, texture.clone().unwrap().size_vec2()); //rettangolo della dimensione dell'immagine
+                    let screen_rect = eframe::emath::RectTransform::from_to(texture_rect,edited_image.rect);
+                    //let response = ui.add(edited_image.);
+                    //let image_center = response.rect.center();
+                    let area_pos = egui::pos2(0.0, 32.0);
                     egui::Area::new("my_area")
                         .default_pos(area_pos)
                         .show(ui.ctx(), |ui| {
-                            screen::ui_content(ui, points, stroke, response, edited_image.size());
+                            screen::ui_content(ui, points, stroke, edited_image.clone(), edited_image.rect.size());
                         });
             });
         }
@@ -532,8 +516,8 @@ pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_forma
 }
 
 
-fn set_image_gui_visible (window_size :eframe::egui::Vec2, prop :f32) -> eframe::egui::Vec2 {
-    let mut  size = eframe::egui::Vec2::new(0.0, 0.0);
+fn set_image_gui_visible (window_size :egui::Vec2, prop :f32) -> egui::Vec2 {
+    let mut  size = egui::Vec2::new(0.0, 0.0);
     size.x = window_size.x * 0.8;
     size.y = size.x / prop;
     if size.y >= window_size.y * 0.8 {
