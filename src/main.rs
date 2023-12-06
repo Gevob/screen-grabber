@@ -8,7 +8,6 @@ use egui::*;
 use image::RgbaImage;
 use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Modifiers, Code}};
 use std::ptr;
-use winapi::um::winuser::{GetForegroundWindow, ShowWindow, SW_HIDE, SW_SHOW};
 use std::thread::sleep;
 use std::time::Duration;
 use arboard::{Clipboard, ImageData as OtherImageData};
@@ -67,7 +66,6 @@ struct Windows {
     change_size : bool, //usato per gestire il cambio di dimensione della finestra (quando è piccola non si deve poter ridimensionare !)
 
     //gestione delle hotkeys
-    is_popup_open: bool,
     manager: MyGlobalHotKeyManager,
     modifier_copy: Modifiers,
     key_copy: Code,
@@ -89,7 +87,6 @@ struct Windows {
     modifiche: EditType,
 
     //gestione del salvataggio
-    is_popup_open2: bool,
     file_format_tmp: String,
     save_path_tmp: PathBuf,
     name_convention_tmp: String,
@@ -99,7 +96,7 @@ struct Windows {
 
 }
 
-#[derive(Default,Debug)]
+#[derive(Default,Debug,PartialEq)]
 pub enum Schermata {
     #[default]
     Home,
@@ -107,6 +104,7 @@ pub enum Schermata {
     Setting_Hotkey,
     Setting_Saving,
 }
+
 //indica il tipo di editing
 #[derive(Default,Debug)]
 pub enum EditType {
@@ -144,7 +142,7 @@ impl Windows {
 
         let mut style = (*cc.egui_ctx.style()).clone();
 
-        style.visuals.panel_fill = eframe::egui::Color32::from_rgb(0, 0, 139); // Dodger Blue color
+        style.visuals.panel_fill = eframe::egui::Color32::from_rgb(20, 50, 105); // Dodger Blue color
         cc.egui_ctx.set_style(style);
 
 
@@ -181,7 +179,7 @@ impl eframe::App for Windows {
 
     match self.schermata {
         Schermata::Home => { // frame.info.window_size substituted by ctx.screen_rect().size() 
-            if ctx.screen_rect().size() != [400.0, 300.0].into(){
+            if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into()))); //set_window_size substituted by ctx.send....
                 self.change_size = true;
             }
@@ -195,14 +193,14 @@ impl eframe::App for Windows {
             gui::edit(ctx, &mut self.stroke, &mut self.texture, frame, &mut self.points, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
         },
         Schermata::Setting_Hotkey => {
-            if ctx.screen_rect().size() != [400.0, 300.0].into(){
+            if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
                 self.change_size = true;
             }
             gui::setting_hotkey(ctx, &mut self.schermata, &mut self.manager, &mut self.modifier_copy, &mut self.key_copy, &mut self.modifier_screen, &mut self.key_screen, &mut self.modifier_save, &mut self.key_save, &mut self.hotkeys_list, &mut self.modifier_copy_tmp, &mut self.key_copy_tmp, &mut self.modifier_screen_tmp, &mut self.key_screen_tmp, &mut self.modifier_save_tmp, &mut self.key_save_tmp);
         },
         Schermata::Setting_Saving => {
-            if ctx.screen_rect().size() != [400.0, 300.0].into(){
+            if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
                 self.change_size = true;
             }
@@ -216,21 +214,12 @@ impl eframe::App for Windows {
         //println!("{:?}",self.image.width());
         //println!("{:?}",self.image.height());
             if(event.id() == 869406661) {
-                unsafe {
-                    // Find the window by class name
-                    let hwnd = GetForegroundWindow();
-                    // Hide the window if it is found
-                    if hwnd != ptr::null_mut() {
-                        ShowWindow(hwnd, SW_HIDE);
-                        sleep(Duration::from_millis(500));
-                        self.image = screen::screenshot().unwrap();
-                        ShowWindow(hwnd, SW_SHOW);
-                    }
-                }
+                self.image = screen::screenshot().unwrap();
                 let flat_image = self.image.as_flat_samples();
                 let color_image2 = egui::ColorImage::from_rgba_unmultiplied([self.image.width() as usize, self.image.height() as usize],flat_image.samples);
                 let image_data: egui::ImageData = egui::ImageData::from(color_image2);
                 self.texture = Some(ctx.load_texture("screen", image_data, Default::default()));
+                self.schermata = Schermata::Edit;
             }
             else if(event.id() == 538883802 && !(self.texture.is_none())) {
                 // Copy the image to the clipboard
@@ -241,10 +230,9 @@ impl eframe::App for Windows {
                 let img_data = OtherImageData { width: self.image.width() as usize, height: self.image.height() as usize, bytes: image_bytes.into() };
                 ctx_clip.set_image(img_data).unwrap();
             }
+            else if(event.id() == 2440410256 && !(self.texture.is_none())) {
 
-        if (!self.is_popup_open && !self.is_popup_open2){
-            self.schermata = Schermata::Edit;
-        }
+            }
     }
         //println!("{:?}",frame.info().window_info.size);
         //println!("proporzione: {:?}",egui::Context::pixels_per_point(ctx));

@@ -22,7 +22,6 @@ use chrono::prelude::*;
 use std::io::Cursor;
 use image::io::Reader as ImageReader;
 use std::ptr;
-use winapi::um::winuser::{GetForegroundWindow, ShowWindow, SW_HIDE, SW_SHOW};
 use std::thread::sleep;
 use std::time::Duration;
 use arboard::{Clipboard, ImageData};
@@ -45,17 +44,7 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
 
 
                 if ui.button("Screenshots").on_hover_text("Take a Screenshot").clicked() {
-                    unsafe {
-                        // Find the window by class name
-                        let hwnd = GetForegroundWindow();
-                        // Hide the window if it is found
-                        if hwnd != ptr::null_mut() {
-                            ShowWindow(hwnd, SW_HIDE);
-                            sleep(Duration::from_millis(500));
-                            *image = screen::screenshot().unwrap();
-                            ShowWindow(hwnd, SW_SHOW);
-                        }
-                    }
+                    *image = screen::screenshot().unwrap();
                     let flat_image = image.as_flat_samples();
                     let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize],flat_image.samples);
                     let image_data = egui::ImageData::from(color_image2);
@@ -126,8 +115,19 @@ pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<Text
 
                 // Save the DynamicImage to a file
                 let dynamic_image = DynamicImage::ImageRgba8(rgba_image.clone());                
-                let output_path = format!("{}\\{}_{}{}", save_path.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
-                dynamic_image.save_with_format(output_path, ImageFormat::Jpeg).expect("Failed to save image");
+                if(*save_path != PathBuf::default()) {
+                    let output_path = format!("{}\\{}_{}{}", save_path.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
+                    dynamic_image.save_with_format(output_path, ImageFormat::Jpeg).expect("Failed to save image");
+                }
+                else {
+                    let p = FileDialog::new().set_directory("/").pick_folder();
+                    if(p.is_none()) { }
+                    else{
+                        let mut path_tmp = p.unwrap();
+                        let output_path = format!("{}\\{}_{}{}", path_tmp.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
+                        dynamic_image.save_with_format(output_path, ImageFormat::Jpeg).expect("Failed to save image");
+                    }   
+                }
             }
 
             if ui.button("Copy").on_hover_text("Copy the Screenshot to Clipboard").clicked() {
