@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use egui::Image;
 use egui::{menu, Button, Color32};
+use egui::emath::RectTransform;
 use image::DynamicImage;
 use egui::*;
 use image::ImageBuffer;
@@ -11,6 +12,7 @@ use image::RgbaImage;
 use image::GenericImageView;
 //use eframe::egui;
 //use eframe::egui::TextureHandle;
+use crate::draws_functions::Draws;
 use crate::Schermata;
 use crate::screen;
 use crate::MyGlobalHotKeyManager;
@@ -96,7 +98,7 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
     });    
 }
 
-pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, points: &mut Vec<Vec<Pos2>>, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
+pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame,  schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
     //sleep(Duration::from_millis(200));
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
         menu::bar(ui, |ui| { 
@@ -143,22 +145,65 @@ pub fn edit(ctx: &egui::Context, stroke: &mut Stroke, texture : &mut Option<Text
 
         ui.add_space(30.0);
         if !(texture.is_none()) { 
-            ui.centered_and_justified(|ui| {
-                let mut edited_image = Image::new(texture.as_ref().unwrap()).max_size(ui.available_size()).maintain_aspect_ratio(true).ui(ui);
+            ui.vertical_centered(|ui| {
+                let mut padding = ui.max_rect();
+                let x = texture.clone().unwrap().aspect_ratio();
+                let y: f32 = padding.aspect_ratio();
+                if x > y {
+                    padding.set_bottom(ui.max_rect().top()+(ui.max_rect().height()/2.0 - (ui.max_rect().width() / x)/2.0 ));
+                    ui.advance_cursor_after_rect(padding);
+                }                
+                let mut edited_image = Image::new(texture.as_ref().unwrap()).max_size(ui.available_size()).maintain_aspect_ratio(true).shrink_to_fit().ui(ui);
                     let texture_rect = egui::Rect::from_min_size(Pos2::ZERO, texture.clone().unwrap().size_vec2()); //rettangolo della dimensione dell'immagine
                     let screen_rect = eframe::emath::RectTransform::from_to(texture_rect,edited_image.rect);
-                    //let response = ui.add(edited_image.);
-                    //let image_center = response.rect.center();
-                    let area_pos = egui::pos2(0.0, 32.0);
-                    egui::Area::new("my_area")
-                        .default_pos(area_pos)
-                        .show(ui.ctx(), |ui| {
-                            screen::ui_content(ui, points, stroke, edited_image.clone(), edited_image.rect.size());
-                        });
+                    let painter = Painter::new(ctx.clone(),edited_image.layer_id,edited_image.rect);
+                    //edit::write_lines( lines, ui,screen_rect.inverse());
+                    edit::write_circles(draws, ui,screen_rect.inverse());
+                    print_draws(&painter, draws, screen_rect);
+                    //Shape::Callback(())
+                    //let shapes = 
+                    //lines
+                    // .iter()
+                    // .filter(|line| line.points.len() >= 2)
+                    // .map(|line| {
+                    //     let points: Vec<Pos2> = line.points.iter().map(|p| screen_rect.transform_pos_clamped(*p)).collect();
+                    //     egui::Shape::line(points, Stroke::new(5.0,Color32::RED))
+                    // });
+                    // painter.extend(shapes);
+                //});
             });
         }
     });
 }
+
+pub fn print_draws(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTransform) {
+                    let shapes = 
+                    draws
+                    .iter()
+                    .map(|draw| {
+                        match draw {
+                            Draws::Line(single_line) => {
+                                let points: Vec<Pos2> = single_line.points.iter().map(|p| screen_rect.transform_pos_clamped(*p)).collect();
+                                egui::Shape::line(points, Stroke::new(5.0,Color32::RED))
+                            }
+                            Draws::Circle(circle) => {
+                                // Gestisci il caso Circle
+                                let center = screen_rect.transform_pos_clamped(circle.center);
+                                let modify = screen_rect.from().width() / screen_rect.to().width();
+                                let radius = circle.radius / modify;
+                                egui::Shape::circle_stroke(center, radius,Stroke::new(5.0,Color32::RED))
+                            }
+                            // Utilizza l'underscore per trattare tutti gli altri casi
+                            _ => {
+                                egui::Shape::Noop
+                            }
+                        }
+
+                        
+                    });
+                    painter.extend(shapes);
+}
+
 
 pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code){
     let window_size = egui::vec2(0.0, 0.0);
