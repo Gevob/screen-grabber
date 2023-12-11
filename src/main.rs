@@ -1,7 +1,9 @@
 
 mod gui;
 mod screen;
-
+mod edit;
+mod draws_functions;
+use draws_functions::Draws;
 use std::path::PathBuf;
 use std::sync::Arc;
 use egui::*;
@@ -82,8 +84,7 @@ struct Windows {
     hotkeys_list: Vec<(Modifiers, Code, String)>,
 
     //gestione editing
-    stroke: Stroke,
-    points: Vec<Vec<Pos2>>,
+    draws: Vec<Draws>,
     modifiche: EditType,
 
     //gestione del salvataggio
@@ -190,7 +191,7 @@ impl eframe::App for Windows {
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([800.0, 620.0].into())));
                 self.change_size = false;
             }
-            gui::edit(ctx, &mut self.stroke, &mut self.texture, frame, &mut self.points, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
+            gui::edit(ctx, &mut self.draws, &mut self.texture, frame, &mut self.points, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
         },
         Schermata::Setting_Hotkey => {
             if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
