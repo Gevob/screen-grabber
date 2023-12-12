@@ -1,0 +1,6 @@
+CONTROL + A
+SHIFT + C
+CONTROL + G
+.tiff
+C:\Users\chito\Documents
+Screenmiaoa
