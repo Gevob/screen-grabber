@@ -4,7 +4,8 @@ mod screen;
 mod edit;
 mod draws_functions;
 use draws_functions::Draws;
-use std::path::PathBuf;
+use gui::{String_to_hotkey, hotkey_to_String};
+use std::{path::PathBuf, io::Write};
 use std::sync::Arc;
 use egui::*;
 use image::RgbaImage;
@@ -14,6 +15,10 @@ use std::thread::sleep;
 use std::time::Duration;
 use arboard::{Clipboard, ImageData as OtherImageData};
 use image::DynamicImage;
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::fs::OpenOptions;
+use std::io::LineWriter;
 
 fn main() {
     
@@ -86,6 +91,7 @@ struct Windows {
     //gestione editing
     draws: Vec<Draws>,
     modifiche: EditType,
+    stroke: Stroke,
 
     //gestione del salvataggio
     file_format_tmp: String,
@@ -94,6 +100,7 @@ struct Windows {
     file_format: String,
     save_path: PathBuf,
     name_convention: String,
+    update_file: bool,
 
 }
 
@@ -127,19 +134,61 @@ impl Windows {
         // for e.g. egui::PaintCallback.
          //cc.egui_ctx.set_pixels_per_point(1.0);
         //println!("{:?}",cc.egui_ctx.pixels_per_point());
+
+        let file = File::open("src/default.txt").unwrap();
+        let reader = io::BufReader::new(file);
         let manager = MyGlobalHotKeyManager::default();
-        let mut hotkey_copy = HotKey::new(Some(Modifiers::CONTROL), Code::KeyA);
-        let mut hotkey_screen = HotKey::new(Some(Modifiers::CONTROL), Code::KeyB);
-        let mut hotkey_save = HotKey::new(Some(Modifiers::CONTROL), Code::KeyD);
-
-        manager.0.register(hotkey_copy);
-        manager.0.register(hotkey_screen);
-        manager.0.register(hotkey_save);
-
         let mut hotkeys_list = Vec::<(Modifiers, Code, String)>::new();
-        hotkeys_list.push((Modifiers::CONTROL, Code::KeyA, "Copy".to_string()));
-        hotkeys_list.push((Modifiers::CONTROL, Code::KeyB, "Screen".to_string()));
-        hotkeys_list.push((Modifiers::CONTROL, Code::KeyD, "Save".to_string()));
+        let mut format = String::new();
+        let mut path = PathBuf::new();
+        let mut name_convention = String::new();
+        let mut modifier_copy = Modifiers::default();
+        let mut modifier_screen = Modifiers::default();
+        let mut modifier_save = Modifiers::default();
+        let mut key_copy = Code::default();
+        let mut key_screen = Code::default();
+        let mut key_save = Code::default();
+
+        for (index, line) in reader.lines().enumerate() {
+
+            match index {
+                0 => {
+                    let tmp = String_to_hotkey(line.unwrap());
+                    let hotkey_copy = HotKey::new(Some(tmp.0), tmp.1);
+                    manager.0.register(hotkey_copy).unwrap();
+                    hotkeys_list.push((tmp.0, tmp.1, "Copy".to_string()));
+                    modifier_copy = tmp.0;
+                    key_copy = tmp.1;
+                },
+                1 => {
+                    let tmp = String_to_hotkey(line.unwrap());
+                    let hotkey_screen = HotKey::new(Some(tmp.0), tmp.1);
+                    manager.0.register(hotkey_screen).unwrap();
+                    hotkeys_list.push((tmp.0, tmp.1, "Screen".to_string()));
+                    modifier_screen = tmp.0;
+                    key_screen = tmp.1;
+                },
+                2 => {
+                    let tmp = String_to_hotkey(line.unwrap());
+                    let hotkey_save = HotKey::new(Some(tmp.0), tmp.1);
+                    manager.0.register(hotkey_save).unwrap();
+                    hotkeys_list.push((tmp.0, tmp.1, "Save".to_string()));
+                    modifier_save = tmp.0;
+                    key_save = tmp.1;
+
+                }
+                3 => {
+                    format = line.unwrap();
+                }
+                4 => {
+                    path.push(line.unwrap());
+                }
+                5 => {
+                    name_convention = line.unwrap();
+                }
+                _ => break, // Break out of the loop if all variables are assigned
+            }
+        }
 
         let mut style = (*cc.egui_ctx.style()).clone();
 
@@ -152,23 +201,49 @@ impl Windows {
             manager: manager,
             change_size: false, 
             hotkeys_list: hotkeys_list,
-            file_format: ".jpeg".to_string(),
-            file_format_tmp: ".jpeg".to_string(),
-            modifier_copy: Modifiers::CONTROL,
-            modifier_copy_tmp: Modifiers::CONTROL,
-            modifier_screen: Modifiers::CONTROL,
-            modifier_screen_tmp: Modifiers::CONTROL,
-            modifier_save: Modifiers::CONTROL,
-            modifier_save_tmp: Modifiers::CONTROL,
-            key_copy: Code::KeyA,
-            key_copy_tmp: Code::KeyA,
-            key_screen: Code::KeyB,
-            key_screen_tmp: Code::KeyB,
-            key_save: Code::KeyD,
-            key_save_tmp: Code::KeyD,
-            name_convention: "Screen".to_string(),
-            name_convention_tmp: "Screen".to_string(),
+            file_format: format.clone(),
+            file_format_tmp: format.clone(),
+            save_path: path.clone(),
+            save_path_tmp: path.clone(),
+            name_convention: name_convention.clone(),
+            name_convention_tmp: name_convention.clone(),
+            modifier_copy: modifier_copy,
+            modifier_copy_tmp: modifier_copy,
+            modifier_screen: modifier_screen,
+            modifier_screen_tmp: modifier_screen,
+            modifier_save: modifier_save,
+            modifier_save_tmp: modifier_save,
+            key_copy: key_copy,
+            key_copy_tmp: key_copy,
+            key_screen: key_screen,
+            key_screen_tmp: key_screen,
+            key_save: key_save,
+            key_save_tmp: key_save,
+
             ..Default::default()
+        }
+    }
+
+    fn update_file_default_setting(&self){
+        let mut file = OpenOptions::new()
+                        .write(true)
+                        .truncate(true)
+                        .open("src/default.txt"); // Open the file with write and truncate mode to erase its contents
+        
+        //file.unwrap().try_clone().unwrap().seek(SeekFrom::Start(0)).unwrap();
+        let mut new_line = LineWriter::new(file.unwrap());
+        let mut lines = Vec::<String>::new();
+
+        lines.push(hotkey_to_String(self.modifier_copy, self.key_copy));
+        lines.push(hotkey_to_String(self.modifier_screen, self.key_screen));
+        lines.push(hotkey_to_String(self.modifier_save, self.key_save));
+        lines.push(self.file_format.clone());
+        lines.push(self.save_path.clone().into_os_string().to_str().unwrap().to_string());
+        lines.push(self.name_convention.clone());
+
+        for line in lines.iter_mut(){
+            line.push_str("\n");
+            new_line.write_all(line.as_bytes());
         }
     }
 }
@@ -191,21 +266,21 @@ impl eframe::App for Windows {
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([800.0, 620.0].into())));
                 self.change_size = false;
             }
-            gui::edit(ctx, &mut self.draws, &mut self.texture, frame, &mut self.points, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
+            gui::edit(ctx, &mut self.draws, &mut self.texture, frame, &mut self.stroke, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
         },
         Schermata::Setting_Hotkey => {
             if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
                 self.change_size = true;
             }
-            gui::setting_hotkey(ctx, &mut self.schermata, &mut self.manager, &mut self.modifier_copy, &mut self.key_copy, &mut self.modifier_screen, &mut self.key_screen, &mut self.modifier_save, &mut self.key_save, &mut self.hotkeys_list, &mut self.modifier_copy_tmp, &mut self.key_copy_tmp, &mut self.modifier_screen_tmp, &mut self.key_screen_tmp, &mut self.modifier_save_tmp, &mut self.key_save_tmp);
+            gui::setting_hotkey(ctx, &mut self.schermata, &mut self.manager, &mut self.modifier_copy, &mut self.key_copy, &mut self.modifier_screen, &mut self.key_screen, &mut self.modifier_save, &mut self.key_save, &mut self.hotkeys_list, &mut self.modifier_copy_tmp, &mut self.key_copy_tmp, &mut self.modifier_screen_tmp, &mut self.key_screen_tmp, &mut self.modifier_save_tmp, &mut self.key_save_tmp, &mut self.update_file);
         },
         Schermata::Setting_Saving => {
             if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
                 self.change_size = true;
             }
-            gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp)
+            gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp, &mut self.update_file)
 
         },
     }
@@ -237,6 +312,12 @@ impl eframe::App for Windows {
     }
         //println!("{:?}",frame.info().window_info.size);
         //println!("proporzione: {:?}",egui::Context::pixels_per_point(ctx));
+
+        if self.update_file{
+            self.update_file_default_setting();
+            self.update_file = false;
+        }
+
    }
 }
 
