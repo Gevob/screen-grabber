@@ -13,7 +13,7 @@ use image::GenericImageView;
 //use eframe::egui;
 //use eframe::egui::TextureHandle;
 use crate::draws_functions::Draws;
-use crate::Schermata;
+use crate::{Schermata, edit};
 use crate::screen;
 use crate::MyGlobalHotKeyManager;
 use global_hotkey::hotkey::{HotKey, Code, Modifiers};
@@ -98,7 +98,7 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
     });    
 }
 
-pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame,  schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
+pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
     //sleep(Duration::from_millis(200));
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
         menu::bar(ui, |ui| { 
@@ -205,7 +205,7 @@ pub fn print_draws(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTransf
 }
 
 
-pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code){
+pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code, update_file: &mut bool){
     let window_size = egui::vec2(0.0, 0.0);
 
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
@@ -414,65 +414,76 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
                 *schermata = Schermata::Home; 
             }
 
-            //fai un check per verificare che tutte le hotkeys siano diverse
-            let mut set = HashSet::<(Modifiers, Code)>::new();
-            let curr_hotkey_list = vec![(*modifier_copy_tmp, *key_copy_tmp, "Copy"), (*modifier_screen_tmp, *key_screen_tmp, "Screen"), (*modifier_save_tmp, *key_save_tmp, "Save")];
-            let all_distinct = curr_hotkey_list.iter().all(|x| set.insert((x.0,x.1)));
+           //fai un check per verificare che tutte le hotkeys siano diverse
+           let mut set = HashSet::<(Modifiers, Code)>::new();
+           let curr_hotkey_list = vec![(*modifier_copy_tmp, *key_copy_tmp, "Copy"), (*modifier_screen_tmp, *key_screen_tmp, "Screen"), (*modifier_save_tmp, *key_save_tmp, "Save")];
+           let all_distinct = curr_hotkey_list.iter().all(|x| set.insert((x.0,x.1)));
+           
+           let mut hotkeys_to_save = Vec::<HotKey>::new();
+           let mut hotkeys_to_delete = Vec::<HotKey>::new();
 
-            ui.set_enabled(all_distinct && ((*modifier_copy != *modifier_copy_tmp) || (*modifier_screen != *modifier_screen_tmp) || (*modifier_save != *modifier_save_tmp) || (*key_copy != *key_copy_tmp) || (*key_screen != *key_screen_tmp) || (*key_save != *key_save_tmp)));
+           ui.set_enabled(all_distinct && ((*modifier_copy != *modifier_copy_tmp) || (*modifier_screen != *modifier_screen_tmp) || (*modifier_save != *modifier_save_tmp) || (*key_copy != *key_copy_tmp) || (*key_screen != *key_screen_tmp) || (*key_save != *key_save_tmp)));
             
-            if ui.button("Salva modifiche").clicked() {
-                *modifier_copy = *modifier_copy_tmp;
-                *modifier_save = *modifier_save_tmp;
-                *modifier_screen = *modifier_screen_tmp;
-                *key_copy = *key_copy_tmp;
-                *key_screen = *key_screen_tmp;
-                *key_save = *key_save_tmp;
+           if ui.button("Salva modifiche").clicked() {
+            *modifier_copy = *modifier_copy_tmp;
+            *modifier_save = *modifier_save_tmp;
+            *modifier_screen = *modifier_screen_tmp;
+            *key_copy = *key_copy_tmp;
+            *key_screen = *key_screen_tmp;
+            *key_save = *key_save_tmp;
 
-                //genera la hotkey
-                if all_distinct {
-                    for el in hotkeys_list.iter_mut(){
-                        if el.2 == "Copy".to_string(){
-                            if el.0 != *modifier_copy || el.1 != *key_copy{
-                                let mut hotkey_copy = HotKey::new(Some(*modifier_copy), *key_copy);
-                                let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
-                                ((*manager).0).unregister(hotkey_to_delete).unwrap();
-                                ((*manager).0).register(hotkey_copy).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
-    
-                                el.0 = *modifier_copy;
-                                el.1 = *key_copy;
-                            }
-                        }
-                        else if el.2 == "Screen".to_string(){
-                            if el.0 != *modifier_screen || el.1 != *key_screen{
-                                let mut hotkey_screen = HotKey::new(Some(*modifier_screen), *key_screen);
-                                let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
-                                ((*manager).0).unregister(hotkey_to_delete).unwrap();
-                                ((*manager).0).register(hotkey_screen).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
-    
-                                el.0 = *modifier_screen;
-                                el.1 = *key_screen;
-                            }
-                        }
-                        else { //if el.2 == "Save".to_string()
-                            if el.0 != *modifier_save || el.1 != *key_save{
-                                let mut hotkey_save = HotKey::new(Some(*modifier_save), *key_save);
-                                let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
-                                ((*manager).0).unregister(hotkey_to_delete).unwrap();
-                                ((*manager).0).register(hotkey_save).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
-    
-                                el.0 = *modifier_save;
-                                el.1 = *key_save;
-                            }
+            //genera la hotkey modificata
+            if all_distinct {
+                for el in hotkeys_list.iter_mut(){
+                    if el.2 == "Copy".to_string(){
+                        if el.0 != *modifier_copy || el.1 != *key_copy{
+                            let mut hotkey_copy = HotKey::new(Some(*modifier_copy), *key_copy);
+                            let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
+
+                            hotkeys_to_save.push(hotkey_copy);
+                            hotkeys_to_delete.push(hotkey_to_delete);
+
+                            el.0 = *modifier_copy;
+                            el.1 = *key_copy;
                         }
                     }
-                    *schermata = Schermata::Home; 
+                    else if el.2 == "Screen".to_string(){
+                        if el.0 != *modifier_screen || el.1 != *key_screen{
+                            let mut hotkey_screen = HotKey::new(Some(*modifier_screen), *key_screen);
+                            let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
+
+                            hotkeys_to_save.push(hotkey_screen);
+                            hotkeys_to_delete.push(hotkey_to_delete);
+
+                            el.0 = *modifier_screen;
+                            el.1 = *key_screen;
+                        }
+                    }
+                    else { //if el.2 == "Save".to_string()
+                        if el.0 != *modifier_save || el.1 != *key_save{
+                            let mut hotkey_save = HotKey::new(Some(*modifier_save), *key_save);
+                            let mut hotkey_to_delete = HotKey::new(Some(el.0), el.1);
+
+                            hotkeys_to_save.push(hotkey_save);
+                            hotkeys_to_delete.push(hotkey_to_delete);
+
+                            el.0 = *modifier_save;
+                            el.1 = *key_save;
+                        }
+                    }
                 }
+
+                ((*manager).0).unregister_all(&hotkeys_to_delete).unwrap();
+                ((*manager).0).register_all(&hotkeys_to_save).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
+                
+                *update_file = true;
+                *schermata = Schermata::Home; 
             }
+        }
         });
 }
 
-pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String){
+pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String, update_file: &mut bool){
     let window_size = egui::vec2(0.0, 0.0);
 
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
@@ -555,7 +566,9 @@ pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_forma
                     *save_path = save_path_tmp.clone();
                     *file_format = file_format_tmp.clone(); 
                     *name_convention = name_convention_tmp.clone();
-                    *schermata = Schermata::Home;
+
+                    *update_file = true; //in order to update the default initial settings
+                    *schermata = Schermata::Home; 
                 }
             });
 }
@@ -572,7 +585,7 @@ fn set_image_gui_visible (window_size :egui::Vec2, prop :f32) -> egui::Vec2 {
     size
 }
 
-fn hotkey_to_String(modifier: Modifiers, key: Code) -> String{
+pub fn hotkey_to_String(modifier: Modifiers, key: Code) -> String{
     let mut mystr = String::from("");
 
     match modifier {
@@ -626,3 +639,57 @@ fn hotkey_to_String(modifier: Modifiers, key: Code) -> String{
     return mystr;
 }
 
+pub fn String_to_hotkey(my_string: String) -> (Modifiers, Code){
+    let mod_and_key: Vec<&str> = my_string.split("+").collect();
+    let mut result : (Modifiers, Code) = (Modifiers::default(), Code::default());
+
+    match mod_and_key[0].trim() {
+        "ALT" => result.0 = Modifiers::ALT,
+        "CONTROL" => result.0 = Modifiers::CONTROL, 
+        "SHIFT" => result.0 = Modifiers::SHIFT,
+        _ => panic!("miao"),
+    }
+
+    match mod_and_key[1].trim() {
+        "A" => result.1 = Code::KeyA,
+        "B" => result.1 = Code::KeyB,
+        "C" => result.1 = Code::KeyC,
+        "D" => result.1 = Code::KeyD,
+        "E" => result.1 = Code::KeyE,
+        "F" => result.1 = Code::KeyF,
+        "G" => result.1 = Code::KeyG,
+        "H" => result.1 = Code::KeyH,
+        "I" => result.1 = Code::KeyI,
+        "J" => result.1 = Code::KeyJ,
+        "K" => result.1 = Code::KeyK,
+        "L" => result.1 = Code::KeyL,
+        "M" => result.1 = Code::KeyM,
+        "N" => result.1 = Code::KeyN,
+        "O" => result.1 = Code::KeyO,
+        "P" => result.1 = Code::KeyP,
+        "Q" => result.1 = Code::KeyQ,
+        "R" => result.1 = Code::KeyR,
+        "S" => result.1 = Code::KeyS,
+        "T" => result.1 = Code::KeyT,
+        "U" => result.1 = Code::KeyU,
+        "V" => result.1 = Code::KeyV,
+        "W" => result.1 = Code::KeyW,
+        "X" => result.1 = Code::KeyX,
+        "Y" => result.1 = Code::KeyY,
+        "Z" => result.1 = Code::KeyZ,
+        "F1" => result.1 = Code::KeyA,
+        "F2" => result.1 = Code::KeyB,
+        "F3" => result.1 = Code::KeyC,
+        "F5" => result.1 = Code::KeyE,
+        "F6" => result.1 = Code::KeyF,
+        "F7" => result.1 = Code::KeyG,
+        "F8" => result.1 = Code::KeyH,
+        "F9" => result.1 = Code::KeyI,
+        "F10" => result.1 = Code::KeyA,
+        "F11" => result.1 = Code::KeyB,
+        "F12" => result.1 = Code::KeyC,
+        _ => panic!("miao"),
+    }  
+
+    return result;
+}
