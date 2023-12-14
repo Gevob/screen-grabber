@@ -1,14 +1,17 @@
 
 mod gui;
 mod screen;
+mod wrapper_functions;
 mod edit;
 mod draws_functions;
+use chrono::Utc;
 use draws_functions::Draws;
 use gui::{String_to_hotkey, hotkey_to_String};
+use screenshots::display_info;
 use std::{path::PathBuf, io::Write};
 use std::sync::Arc;
 use egui::*;
-use image::RgbaImage;
+use image::{RgbaImage, ImageFormat};
 use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Modifiers, Code}};
 use std::ptr;
 use std::thread::sleep;
@@ -19,6 +22,8 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::fs::OpenOptions;
 use std::io::LineWriter;
+use rfd::FileDialog;
+
 
 fn main() {
     
@@ -86,8 +91,8 @@ struct Windows {
     key_screen_tmp: Code,
     modifier_save_tmp: Modifiers,
     key_save_tmp: Code,
-    hotkeys_list: Vec<(Modifiers, Code, String)>,
-
+    hotkeys_list: Vec<(Modifiers, Code, String, u32)>,
+ 
     //gestione editing
     draws: Vec<Draws>,
     modifiche: EditType,
@@ -101,7 +106,9 @@ struct Windows {
     save_path: PathBuf,
     name_convention: String,
     update_file: bool,
-
+    monitor_used: usize,
+    monitor_used_tmp: usize,
+    num_monitors: usize,
 }
 
 #[derive(Default,Debug,PartialEq)]
@@ -138,7 +145,7 @@ impl Windows {
         let file = File::open("src/default.txt").unwrap();
         let reader = io::BufReader::new(file);
         let manager = MyGlobalHotKeyManager::default();
-        let mut hotkeys_list = Vec::<(Modifiers, Code, String)>::new();
+        let mut hotkeys_list = Vec::<(Modifiers, Code, String, u32)>::new();
         let mut format = String::new();
         let mut path = PathBuf::new();
         let mut name_convention = String::new();
@@ -148,6 +155,7 @@ impl Windows {
         let mut key_copy = Code::default();
         let mut key_screen = Code::default();
         let mut key_save = Code::default();
+        let display_infos: Vec<display_info::DisplayInfo> = screenshots::display_info::DisplayInfo::all().unwrap();
 
         for (index, line) in reader.lines().enumerate() {
 
@@ -156,7 +164,7 @@ impl Windows {
                     let tmp = String_to_hotkey(line.unwrap());
                     let hotkey_copy = HotKey::new(Some(tmp.0), tmp.1);
                     manager.0.register(hotkey_copy).unwrap();
-                    hotkeys_list.push((tmp.0, tmp.1, "Copy".to_string()));
+                    hotkeys_list.push((tmp.0, tmp.1, "Copy".to_string(), hotkey_copy.id()));
                     modifier_copy = tmp.0;
                     key_copy = tmp.1;
                 },
@@ -164,7 +172,7 @@ impl Windows {
                     let tmp = String_to_hotkey(line.unwrap());
                     let hotkey_screen = HotKey::new(Some(tmp.0), tmp.1);
                     manager.0.register(hotkey_screen).unwrap();
-                    hotkeys_list.push((tmp.0, tmp.1, "Screen".to_string()));
+                    hotkeys_list.push((tmp.0, tmp.1, "Screen".to_string(), hotkey_screen.id()));
                     modifier_screen = tmp.0;
                     key_screen = tmp.1;
                 },
@@ -172,10 +180,9 @@ impl Windows {
                     let tmp = String_to_hotkey(line.unwrap());
                     let hotkey_save = HotKey::new(Some(tmp.0), tmp.1);
                     manager.0.register(hotkey_save).unwrap();
-                    hotkeys_list.push((tmp.0, tmp.1, "Save".to_string()));
+                    hotkeys_list.push((tmp.0, tmp.1, "Save".to_string(), hotkey_save.id()));
                     modifier_save = tmp.0;
                     key_save = tmp.1;
-
                 }
                 3 => {
                     format = line.unwrap();
@@ -190,12 +197,13 @@ impl Windows {
             }
         }
 
+        /*
         let mut style = (*cc.egui_ctx.style()).clone();
 
-        style.visuals.panel_fill = eframe::egui::Color32::from_rgb(20, 50, 105); // Dodger Blue color
+        style.visuals.panel_fill = eframe::egui::Color32::from_rgb(0, 138, 0); // Dodger Blue color
         cc.egui_ctx.set_style(style);
 
-
+*/
         Self {
             stroke: Stroke::new(1.0, egui::Color32::from_rgba_premultiplied(200, 195, 25, 255)),
             manager: manager,
@@ -219,7 +227,9 @@ impl Windows {
             key_screen_tmp: key_screen,
             key_save: key_save,
             key_save_tmp: key_save,
-
+            monitor_used: 0, //uso solo il primo monitor di default
+            monitor_used_tmp: 0, //uso solo il primo monitor di default
+            num_monitors: display_infos.len(),
             ..Default::default()
         }
     }
@@ -259,7 +269,7 @@ impl eframe::App for Windows {
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into()))); //set_window_size substituted by ctx.send....
                 self.change_size = true;
             }
-            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention);
+            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.monitor_used);
         },
         Schermata::Edit => {
             if ctx.screen_rect().size() != [800.0, 620.0].into() && self.change_size{
@@ -280,35 +290,26 @@ impl eframe::App for Windows {
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
                 self.change_size = true;
             }
-            gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp, &mut self.update_file)
+            gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp, &mut self.update_file, &mut self.monitor_used, &mut self.monitor_used_tmp);
 
         },
     }
 
     if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
         println!("{:?}",event.id());
-        //println!("{:?}",self.image.width());
-        //println!("{:?}",self.image.height());
-            if(event.id() == 869406661) {
-                self.image = screen::screenshot().unwrap();
-                let flat_image = self.image.as_flat_samples();
-                let color_image2 = egui::ColorImage::from_rgba_unmultiplied([self.image.width() as usize, self.image.height() as usize],flat_image.samples);
-                let image_data: egui::ImageData = egui::ImageData::from(color_image2);
-                self.texture = Some(ctx.load_texture("screen", image_data, Default::default()));
-                self.schermata = Schermata::Edit;
+        
+        for el in self.hotkeys_list.iter(){
+            if event.id() == el.3 && el.2 == "Screen".to_string() {
+                screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used)
             }
-            else if(event.id() == 538883802 && !(self.texture.is_none())) {
+            else if event.id() == el.3 && el.2 == "Copy".to_string() && !(self.texture.is_none()) {
                 // Copy the image to the clipboard
-                let mut ctx_clip = Clipboard::new().unwrap();
-                let clipboard_image = DynamicImage::ImageRgba8(self.image.clone());
-                let image_bytes = clipboard_image.into_bytes();
-                #[rustfmt::skip]
-                let img_data = OtherImageData { width: self.image.width() as usize, height: self.image.height() as usize, bytes: image_bytes.into() };
-                ctx_clip.set_image(img_data).unwrap();
+                wrapper_functions::copy_to_clipboard(&self.image);
             }
-            else if(event.id() == 2440410256 && !(self.texture.is_none())) {
-
+            else if event.id() == el.3 && el.2 == "Save".to_string() && !(self.texture.is_none()) {
+                wrapper_functions::save_image(&self.image, &self.save_path, &self.name_convention, &self.file_format)
             }
+        }
     }
         //println!("{:?}",frame.info().window_info.size);
         //println!("proporzione: {:?}",egui::Context::pixels_per_point(ctx));
@@ -317,6 +318,15 @@ impl eframe::App for Windows {
             self.update_file_default_setting();
             self.update_file = false;
         }
+
+        let display_infos: Vec<display_info::DisplayInfo> = screenshots::display_info::DisplayInfo::all().unwrap();
+
+        if self.num_monitors != display_infos.len(){
+            self.monitor_used = 0; //nel caso si "stacchi" il cavo all'imporvviso del secondo schermo, si riporta lo schermo principale al primo
+            self.monitor_used_tmp = 0;
+            self.num_monitors = display_infos.len();
+        }
+        //se il numero dello schermo usato è maggiore del numero di schermi, allora risettalo a zero
 
    }
 }
