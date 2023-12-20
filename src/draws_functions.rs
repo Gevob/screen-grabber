@@ -1,17 +1,17 @@
 
 
 
-use egui::*;
+use egui::{*, emath::RectTransform};
 
-
-
-
-
+#[derive(Debug)]
 pub enum Draws {
     Line(Single_Line),
     Circle(Circle),
-    Rect(Rectangle)
+    Rect(Rectangle),
+    Segment(Segment),
+    Text(Text)
 }
+
 
 
 impl Draws{
@@ -24,6 +24,10 @@ impl Draws{
     }
 
     pub fn rect(rect: Rectangle) -> Self {
+        Self::Rect(rect)
+    }
+
+    pub fn segment(rect: Rectangle) -> Self {
         Self::Rect(rect)
     }
 
@@ -47,6 +51,20 @@ impl Draws{
             _ => None
         }
     }
+
+    pub fn to_segment(&mut self) -> Option<&mut Segment> {
+        match self {
+            Draws::Segment(l) => Some(l),
+            _ => None
+        }
+    }
+
+    pub fn to_text(&mut self) -> Option<&mut Text> {
+        match self {
+            Draws::Text(t) => Some(t),
+            _ => None
+        }
+    }
 }
 
 
@@ -60,9 +78,9 @@ pub struct Single_Line {
 }
 
 impl Single_Line {
-    pub fn new() -> Self {
+    pub fn new(stroke: &Stroke) -> Self {
         Self { points: Vec::new(),
-             stroke: Stroke::new(0.0,Color32::default())}
+             stroke: *stroke}
     }
 }
 
@@ -74,22 +92,75 @@ pub struct Circle{
 }
 
 impl Circle {
-    pub fn new() -> Self {
+    pub fn new(stroke: &Stroke) -> Self {
         Self { center: Pos2::default(),
                 radius: f32::default(),
-             stroke: Stroke::new(0.0,Color32::default())}
+             stroke: *stroke}
     }    
 }
 
-#[derive(Default,Debug)]
+#[derive(Debug)]
 pub struct Rectangle{
-    pub points: [Pos2;2],
+    pub rect: Rect,
+    pub first_point: Pos2,
     pub stroke: Stroke
 }
 
 impl Rectangle {
-    pub fn new() -> Self {
+    pub fn new(point: Pos2, stroke: &Stroke) -> Self {
+        Self { //points: [Pos2::default();2]
+             rect: Rect::NOTHING,
+             first_point: point,
+             stroke: *stroke}
+    }  
+
+    pub fn from_two_point(&self,point: Pos2)   -> Rect {
+            Rect::from_two_pos(self.first_point,point)
+    }
+}
+
+
+#[derive(Default,Debug)]
+pub struct Segment{
+    pub points: [Pos2;2],
+    pub stroke: Stroke
+}
+
+impl Segment {
+    pub fn new(stroke: &Stroke) -> Self {
         Self { points: [Pos2::default();2],
-             stroke: Stroke::new(0.0,Color32::default())}
+             stroke: *stroke}
     }    
+}
+
+#[derive(Default,Debug,Clone)]
+pub struct Text{
+    pub point: Pos2,
+    pub letters: String,
+    pub stroke: Stroke,
+    pub focus: bool
+}
+
+
+
+
+
+impl Text {
+    pub fn new(stroke: &Stroke) -> Self {
+        Self { point: Pos2::default(),
+             letters: String::from(""),
+             focus: true,
+             stroke: *stroke}
+    } 
+
+    pub fn add_input(&mut self, input: &String)  {
+        self.letters.push_str(input);
+    }
+
+    pub fn remove_input(&mut self)  {
+        if self.letters.len() > 0 {
+            self.letters.pop();
+        }
+        
+    }
 }
