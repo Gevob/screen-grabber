@@ -106,9 +106,7 @@ pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<T
     //sleep(Duration::from_millis(200));
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
         menu::bar(ui, |ui| { 
-            ui.color_edit_button_srgba(&mut stroke.color);
-            ui.add(egui::Slider::new(&mut stroke.width, 1.0..=8.0).integer());   
-
+            add_edits_buttons(ui, stroke, mode,last_index); 
             if ui.button("Discard").clicked() {
                 *schermata = Schermata::Home;
                 //elimina anche gli edit
@@ -138,52 +136,169 @@ pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<T
                     let texture_rect = egui::Rect::from_min_size(Pos2::ZERO, texture.clone().unwrap().size_vec2()); //rettangolo della dimensione dell'immagine
                     let screen_rect = eframe::emath::RectTransform::from_to(texture_rect,edited_image.rect);
                     let painter = Painter::new(ctx.clone(),edited_image.layer_id,edited_image.rect);
-                    //edit::write_lines( lines, ui,screen_rect.inverse());
-                    edit::write_circles(draws, ui,screen_rect.inverse());
-                    print_draws(&painter, draws, screen_rect);
-                    //Shape::Callback(())
-                    //let shapes = 
-                    //lines
-                    // .iter()
-                    // .filter(|line| line.points.len() >= 2)
-                    // .map(|line| {
-                    //     let points: Vec<Pos2> = line.points.iter().map(|p| screen_rect.transform_pos_clamped(*p)).collect();
-                    //     egui::Shape::line(points, Stroke::new(5.0,Color32::RED))
-                    // });
-                    // painter.extend(shapes);
-                //});
+                    match mode {
+                        EditType::Circle => {
+                            edit::write_circles(draws, ui,screen_rect.inverse(),stroke);
+                        }
+                        EditType::Rectangle => {
+                            edit::write_rects(draws, ui, screen_rect.inverse(),stroke);
+                        }
+                        EditType::Free => {
+                            edit::write_lines( draws, ui,screen_rect.inverse(),stroke);
+                        }
+                        EditType::Text => {
+                            edit::write_text(&painter, draws, ui, screen_rect.inverse(),last_index,stroke);
+                            if last_index.is_some()  {
+                                edit::read_keyboard_input(ui, draws[last_index.unwrap()].to_text().unwrap(),last_index);
+                            }
+                        }
+                        EditType::Segment => {
+                            edit::write_segments(draws, ui,screen_rect.inverse(),stroke);
+                        }
+                        EditType::Crop => {
+
+                        }
+                        _ => {
+
+                        }
+                    }
+                    print_draws3(&painter, draws, screen_rect,last_index);
             });
         }
     });
 }
 
-pub fn print_draws(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTransform) {
-                    let shapes = 
-                    draws
-                    .iter()
-                    .map(|draw| {
-                        match draw {
-                            Draws::Line(single_line) => {
-                                let points: Vec<Pos2> = single_line.points.iter().map(|p| screen_rect.transform_pos_clamped(*p)).collect();
-                                egui::Shape::line(points, Stroke::new(5.0,Color32::RED))
-                            }
-                            Draws::Circle(circle) => {
-                                // Gestisci il caso Circle
-                                let center = screen_rect.transform_pos_clamped(circle.center);
-                                let modify = screen_rect.from().width() / screen_rect.to().width();
-                                let radius = circle.radius / modify;
-                                egui::Shape::circle_stroke(center, radius,Stroke::new(5.0,Color32::RED))
-                            }
-                            // Utilizza l'underscore per trattare tutti gli altri casi
-                            _ => {
-                                egui::Shape::Noop
-                            }
-                        }
+fn add_edits_buttons(ui: &mut Ui, stroke: &mut Stroke, mode: &mut EditType,last_index: &mut Option<usize>) {
+    color_picker_and_width(ui, stroke);
+    if edit_single_button(ui,&CURSOR,mode,&EditType::Cursor).clicked(){
+        *mode = EditType::Cursor;
+        *last_index = None;
+    }
+    if edit_single_button(ui,&ERASER,mode,&EditType::Eraser).clicked(){
+        *mode = EditType::Eraser;
+        *last_index = None;
+    }
+    if edit_single_button(ui,&CIRCLE,mode,&EditType::Circle).clicked(){
+        *mode = EditType::Circle;
+        *last_index = None;
+    }
+    if edit_single_button(ui,&RECTANGLE,mode,&EditType::Rectangle).clicked(){
+        *mode = EditType::Rectangle;
+        *last_index = None;
+    }
+    if edit_single_button(ui,&SEGMENT,mode,&EditType::Segment).clicked(){
+        *mode = EditType::Segment;
+        *last_index = None;
+    }
+    if edit_single_button(ui,&FREE,mode,&EditType::Free).clicked(){
+        *mode = EditType::Free;
+        *last_index = None;
+    }
+    if edit_single_button(ui,&TEXT,mode,&EditType::Text).clicked(){
+        *mode = EditType::Text;
+    }
+    if edit_single_button(ui,&SCISSOR,mode,&EditType::Crop).clicked(){
+        *mode = EditType::Crop;
+        *last_index = None;
+    }
+    if edit_single_button(ui,&BACK,mode,&EditType::Back).clicked(){
+        *last_index = None;
+    }
 
-                        
-                    });
-                    painter.extend(shapes);
 }
+
+
+
+fn color_picker_and_width(ui: &mut Ui, stroke: &mut Stroke) {
+    let size_points = egui::Vec2::new(128.0,32.0);
+    let (id, rect) = ui.allocate_space(size_points);
+    ui.allocate_ui_at_rect(rect, |ui| {
+        ui.color_edit_button_srgba(&mut stroke.color);
+    });
+    let (id, rect2) = ui.allocate_space(size_points);
+    ui.allocate_ui_at_rect(rect2, |ui| {
+        ui.add(egui::Slider::new(&mut stroke.width, 1.0..=8.0).integer());   
+    });
+    
+}
+
+
+
+fn edit_single_button(ui: &mut Ui,image: &Image<'_>, mode: &EditType,current_mode: &EditType) -> Response {
+    let size_points = egui::Vec2::splat(32.0);
+    let (id, rect) = ui.allocate_space(size_points);
+    let response = ui.interact(rect, id, Sense::click());
+    if response.hovered() || mode == current_mode  {
+        ui.painter().rect_filled(
+            rect,
+            Rounding::same(4.0),
+            Color32::from_rgb(83,83,83)
+        );
+        //ui.visuals().widgets.active.fg_stroke.color
+    }
+    let image = image
+    .clone()
+    .maintain_aspect_ratio(true)
+    //.tint(tint)
+    .fit_to_exact_size(size_points);
+//ui.add(Button::image(image));
+    image.paint_at(ui, rect);
+    response
+}
+
+pub fn print_draws3(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTransform,last_index: &mut Option<usize>) {
+    let mut shape: Vec<Shape> = Vec::new();
+    println!("Testo {:?}",draws);
+    //print_text(painter);
+    //let shapes = 
+    draws
+    .iter().enumerate()
+    .for_each(|(index,draw)| {
+        match draw {
+            Draws::Line(single_line) => {
+                let points: Vec<Pos2> = single_line.points.iter().map(|p| screen_rect.transform_pos_clamped(*p)).collect();
+                shape.push(egui::Shape::line(points, single_line.stroke));
+            }
+            Draws::Circle(circle) => {
+                let center = screen_rect.transform_pos_clamped(circle.center);
+                let modify = screen_rect.from().width() / screen_rect.to().width();
+                let radius = circle.radius / modify;
+                shape.push(egui::Shape::circle_stroke(center, radius,circle.stroke));
+            }
+            Draws::Rect(rectangle) => {
+                let min = screen_rect.transform_pos_clamped(rectangle.rect.min);
+                let max = screen_rect.transform_pos_clamped(rectangle.rect.max);
+                shape.push(egui::Shape::rect_stroke(Rect::from_min_max(min, max), epaint::Rounding::ZERO, rectangle.stroke));
+            }
+            Draws::Text(text) => {
+                let galley = painter.layout_no_wrap(text.letters.clone(), FontId::monospace(32.0), text.stroke.color);
+                let point = screen_rect.transform_pos_clamped(text.point);
+                let rect = Align2::CENTER_CENTER.anchor_rect(Rect::from_min_size(point, galley.size()));
+                if last_index.is_some() && last_index.unwrap() == index {
+                let path = [Pos2::new(rect.left(),rect.top()),
+                            Pos2::new(rect.right(),rect.top()),
+                            Pos2::new(rect.right(),rect.bottom()),
+                            Pos2::new(rect.left(),rect.bottom()),
+                            Pos2::new(rect.left(),rect.top())];
+                let dotted_line = Shape::dotted_line(&path, Color32::GRAY, 12.0, 4.0);
+                shape.extend(dotted_line);
+                }
+                shape.push(Shape::galley(rect.min, galley));
+            }
+            Draws::Segment(segment) => {
+                let point_1 = screen_rect.transform_pos_clamped(segment.points[0]);
+                let point_2 = screen_rect.transform_pos_clamped(segment.points[1]);
+                shape.push(egui::Shape::line_segment([point_1,point_2],segment.stroke));
+            }
+            // Utilizza l'underscore per trattare tutti gli altri casi
+            _ => {
+                shape.push(egui::Shape::Noop);
+            }
+        }
+    });
+    painter.extend(shape);
+}
+
 
 pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code, update_file: &mut bool){
     let window_size = egui::vec2(0.0, 0.0);
