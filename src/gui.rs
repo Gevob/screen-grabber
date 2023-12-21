@@ -102,7 +102,7 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
     });    
 }
 
-pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String){
+pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String,last_index: &mut Option<usize>, mode: &mut EditType){
     //sleep(Duration::from_millis(200));
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
         menu::bar(ui, |ui| { 
