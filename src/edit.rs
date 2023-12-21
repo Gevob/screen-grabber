@@ -1,26 +1,28 @@
-use std::ptr::null;
+
 
 use egui::{*, emath::RectTransform};
-
+use egui::epaint::*;
 use crate::draws_functions::{Circle, Single_Line, Draws, Rectangle, Segment, Text};
 
-
-pub fn write_lines(lines: &mut Vec<Single_Line>, ui: &mut Ui, original: RectTransform)  {
+pub fn write_lines(draws: &mut Vec<Draws>, ui: &mut Ui, original: RectTransform,stroke: &Stroke)  {
     let interaction = ui.interact(*original.from(), ui.id(), Sense::click_and_drag());
     let click = interaction.interact_pointer_pos();
     if click.is_none() {
         return 
     }
     if interaction.drag_started_by(PointerButton::Primary) {
-        lines.push(Single_Line::new());
+        draws.push(Draws::Line({
+            let l = Single_Line::new(stroke);
+            l
+        }));
     }
     if interaction.dragged_by(PointerButton::Primary) {
-        let new_draw_id = lines.len() - 1;
-        lines[new_draw_id].points.push(original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap()));
+        let new_draw_id = draws.len() - 1;
+        draws[new_draw_id].to_line().unwrap().points.push(original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap()));
     }  
 }
 
-pub fn write_circles(draws: &mut Vec<Draws>, ui: &mut Ui, original: RectTransform)  {
+pub fn write_circles(draws: &mut Vec<Draws>, ui: &mut Ui, original: RectTransform,stroke: &Stroke)  {
     let interaction = ui.interact(*original.from(), ui.id(), Sense::click_and_drag());
     let click = interaction.interact_pointer_pos();
     if click.is_none() {
@@ -28,7 +30,7 @@ pub fn write_circles(draws: &mut Vec<Draws>, ui: &mut Ui, original: RectTransfor
     }
     if interaction.drag_started_by(PointerButton::Primary) {
         draws.push(Draws::circle({
-            let mut c = Circle::new();
+            let mut c = Circle::new(stroke);
             c.center = original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap());
             c
         }));
@@ -38,31 +40,31 @@ pub fn write_circles(draws: &mut Vec<Draws>, ui: &mut Ui, original: RectTransfor
         let point = original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap());
         let new_draw_id = draws.len() - 1;
         draws[new_draw_id].to_circle().unwrap().radius = point.distance(draws[new_draw_id].to_circle().unwrap().center);
-        
     }  
 }
 
-pub fn write_rects(draws: &mut Vec<Draws>, ui: &mut Ui, original: RectTransform)  {
+pub fn write_rects(draws: &mut Vec<Draws>, ui: &mut Ui, original: RectTransform,stroke: &Stroke)  {
     let interaction = ui.interact(*original.from(), ui.id(), Sense::click_and_drag());
     let click = interaction.interact_pointer_pos();
     if click.is_none() {
         return 
     }
     if interaction.drag_started_by(PointerButton::Primary) {
-        draws.push(Draws::circle({
-            let mut c = Circle::new();
-            c.center = original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap());
-            c
+        draws.push(Draws::Rect({
+            let mut r = Rectangle::new(original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap()),stroke);
+            r
         }));
         //draws[new_draw_id].center = original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap());
     }
     if interaction.dragged_by(PointerButton::Primary) {
         let point = original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap());
         let new_draw_id = draws.len() - 1;
-        draws[new_draw_id].to_circle().unwrap().radius = point.distance(draws[new_draw_id].to_circle().unwrap().center);
+        draws[new_draw_id].to_rect().unwrap().rect = draws[new_draw_id].to_rect().unwrap().from_two_point(point);
+        //point.distance(draws[new_draw_id].to_circle().unwrap().center);
         
-    }  
+    }
 }
+
 
 pub fn write_segments(draws: &mut Vec<Draws>, ui: &mut Ui, original: RectTransform,stroke: &Stroke)  {
     let interaction = ui.interact(*original.from(), ui.id(), Sense::click_and_drag());
@@ -109,7 +111,7 @@ pub fn write_text(painter: &Painter,draws: &mut Vec<Draws>, ui: &mut Ui, origina
 }
 
 pub fn read_keyboard_input(ui: &mut Ui, text: &mut Text,last_index: &mut Option<usize>) {
-    println!("entra in readdddd");
+    
     let input = ui.input(|i| i.events.clone() /*i.key_pressed(egui::Key::A)*/);
     input.iter().for_each(|event| {
         match event {
@@ -126,7 +128,7 @@ pub fn read_keyboard_input(ui: &mut Ui, text: &mut Text,last_index: &mut Option<
                 text.remove_input();
             }
             Event::Text(key) => {
-                println!("{:?}",key);
+                
                 text.add_input(key);
             }
             _ =>{
