@@ -2,10 +2,13 @@ use std::path::PathBuf;
 
 use arboard::{Clipboard, ImageData as OtherImageData};
 use chrono::Utc;
-use egui::Ui;
+use egui::{Ui};
 use global_hotkey::hotkey::Code;
-use image::{DynamicImage, RgbImage, RgbaImage, ImageFormat};
+use image::{DynamicImage, RgbImage, RgbaImage, ImageFormat, Rgba};
 use rfd::FileDialog;
+
+use crate::draws_functions::{Circle, Draws};
+
 
 pub fn copy_to_clipboard(image: &RgbaImage){
     let mut ctx_clip = Clipboard::new().unwrap();
@@ -16,11 +19,12 @@ pub fn copy_to_clipboard(image: &RgbaImage){
     ctx_clip.set_image(img_data).unwrap();
 }
 
-pub fn save_image(rgba_image: &RgbaImage, save_path: &PathBuf, name_convention: &String, file_format: &String){
+pub fn save_image(rgba_image: &mut RgbaImage, save_path: &PathBuf, name_convention: &String, file_format: &String, draws: &mut Vec<Draws>){
     let now = Utc::now();
     let ts = now.timestamp(); //add timestamp in the name convention, in order to have unique files
 
     // Save the DynamicImage to a file
+    draw_on_image(draws, rgba_image);
     let dynamic_image = DynamicImage::ImageRgba8(rgba_image.clone());                
     if(*save_path != PathBuf::default()) {
         let output_path = format!("{}\\{}_{}{}", save_path.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
@@ -81,4 +85,41 @@ pub fn show_combo_box(ui: &mut Ui, key: &mut Code, id_combo_box: String){
         ui.selectable_value(key, Code::F12, "F12");
         //... aggiungere altre keys nel caso sia necessario ...
     });
+}
+
+fn draw_circle_on_image(circle: &Circle, image: &mut RgbaImage) {
+    // Implement drawing a stroked circumference (outline) of a circle on the image
+    let center = circle.center.round();
+    let radius = circle.radius;
+    let stroke_width = circle.stroke.width as f64;
+
+    // Draw only the pixels along the circumference
+    let mut theta = 0.0;
+    while theta <= 2.0 * std::f64::consts::PI {
+        let x = (center.x + radius * theta.cos() as f32).round() as i32;
+        let y = (center.y + radius * theta.sin() as f32).round() as i32;
+
+        for i in -(stroke_width / 2.0).ceil() as i32..=(stroke_width / 2.0).floor() as i32 {
+            let x_stroke = (center.x + (radius + i as f32) * theta.cos() as f32).round() as i32;
+            let y_stroke = (center.y + (radius + i as f32) * theta.sin() as f32).round() as i32;
+
+            if x_stroke >= 0 && x_stroke < image.width() as i32 && y_stroke >= 0 && y_stroke < image.height() as i32 {
+                image.put_pixel(x_stroke as u32, y_stroke as u32, Rgba(circle.stroke.color.to_array()));
+            }
+        }
+
+        theta += 0.0001; // Adjust this value for a smoother or coarser circumference
+    }
+}
+
+
+
+fn draw_on_image(draws: &Vec<Draws>, image: &mut RgbaImage) {
+    for el in draws.iter(){
+        match el{
+            Draws::Circle(circle) => draw_circle_on_image(circle, image),
+            _ => println!("miao"),
+        }
+        
+    }
 }
