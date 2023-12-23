@@ -22,50 +22,8 @@ pub fn screenshot (used_monitor: usize) -> Result <RgbaImage, Box<dyn Error>> {
 }
 
 
-pub fn ui_content( ui: &mut Ui, lines: &mut Vec<Vec<Pos2>>, stroke: &mut Stroke, resp: Response, dim: Vec2) -> egui::Response {
 
-    let (mut response, painter) =
-        //ui.allocate_painter(dim , Sense::drag());
-        ui.allocate_painter(ui.available_size_before_wrap() , Sense::click_and_drag());
-        
-    let to_screen = emath::RectTransform::from_to(
-        Rect::from_min_size(response.rect.min, response.rect.square_proportions()),
-        response.rect,
-    );
-    let from_screen = to_screen.inverse();
-
-    if lines.is_empty() {
-        lines.push(vec![]);
-    }
-
-    let current_line = lines.last_mut().unwrap();
-
-    if let Some(pointer_pos) = response.interact_pointer_pos() {
-        let canvas_pos = from_screen * pointer_pos;
-        if current_line.last() != Some(&canvas_pos) {
-            current_line.push(canvas_pos);
-            response.mark_changed();
-        }
-    } else if !current_line.is_empty() {
-        lines.push(vec![]);
-        response.mark_changed();
-    }
-
-    let shapes = 
-        lines
-        .iter()
-        .filter(|line| line.len() >= 2)
-        .map(|line| {
-            let points: Vec<Pos2> = line.iter().map(|p| to_screen * *p).collect();
-            egui::Shape::line(points, *stroke)
-        });
-
-    painter.extend(shapes);
-        
-    response
-    }
-
-    pub fn make_screenshot(ctx: &Context, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, schermata: &mut Schermata, used_monitor: usize){
+    pub fn make_screenshot(ctx: &Context, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, schermata: &mut Schermata, used_monitor: usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>){
         if used_monitor == 9999{
             *image = screenshot_all_monitors().unwrap();
         }
@@ -78,6 +36,8 @@ pub fn ui_content( ui: &mut Ui, lines: &mut Vec<Vec<Pos2>>, stroke: &mut Stroke,
         let image_data = egui::ImageData::from(color_image2);
         *texture = Some(ctx.load_texture("screen", image_data, Default::default()));
         *schermata = Schermata::Edit;
+        story_image.push(image.clone());
+        story_texture.push(texture.clone());
     }
 
     pub fn screenshot_all_monitors() -> Result<RgbaImage, Box<dyn Error>> {
