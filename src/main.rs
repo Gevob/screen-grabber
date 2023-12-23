@@ -7,7 +7,7 @@ mod icons;
 mod wrapper_functions;
 
 
-use draws_functions::Draws;
+use draws_functions::{Draws, Crop, Last_Action};
 use gui::{String_to_hotkey, hotkey_to_String};
 use screenshots::display_info;
 use std::{path::PathBuf, io::Write};
@@ -98,6 +98,11 @@ struct Windows {
     mode: EditType,
     stroke: Stroke,
     last_index: Option<usize>,
+    crop: Crop,
+    last_actions: Vec<Last_Action>,
+    story_image : Vec<RgbaImage>, 
+    story_texture : Vec<Option<TextureHandle>>,
+    garbage: Vec<Draws>,
 
     //gestione del salvataggio
     file_format_tmp: String,
@@ -215,7 +220,7 @@ impl Windows {
         Self {
             //text_focused: Box::new(Text::new()),
             //draws: vec![Draws::Text(Text::new())],
-            stroke: Stroke::new(1.0, egui::Color32::from_rgba_premultiplied(200, 195, 25, 255)),
+            stroke: Stroke::new(3.0, egui::Color32::from_rgba_premultiplied(200, 195, 25, 255)),
             manager: manager,
             change_size: false, 
             hotkeys_list: hotkeys_list,
@@ -280,14 +285,14 @@ impl eframe::App for Windows {
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into()))); //set_window_size substituted by ctx.send....
                 self.change_size = true;
             }
-            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.monitor_used);
+            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.monitor_used,&mut self.story_image,&mut self.story_texture);
         },
         Schermata::Edit => {
             if ctx.screen_rect().size() != [800.0, 620.0].into() && self.change_size{
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([800.0, 620.0].into())));
                 self.change_size = false;
             }
-            gui::edit(ctx, &mut self.draws, &mut self.texture, frame, &mut self.stroke, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.last_index, &mut self.mode);
+            gui::edit(ctx, &mut self.draws, &mut self.texture, frame, &mut self.stroke, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.last_index, &mut self.mode,&mut self.crop, &mut self.last_actions, &mut self.story_image,&mut self.story_texture,&mut self.garbage);
         },
         Schermata::Setting_Hotkey => {
             if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
@@ -311,7 +316,7 @@ impl eframe::App for Windows {
 
         for el in self.hotkeys_list.iter(){
             if event.id() == el.3 && el.2 == "Screen".to_string() {
-                screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used)
+                screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used,&mut self.story_image, &mut self.story_texture)
             }
             else if event.id() == el.3 && el.2 == "Copy".to_string() && !(self.texture.is_none()) {
                 // Copy the image to the clipboard
