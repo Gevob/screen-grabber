@@ -3,7 +3,7 @@
 
 use egui::{*, emath::RectTransform};
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum Draws {
     Line(Single_Line),
     Circle(Circle),
@@ -71,7 +71,7 @@ impl Draws{
 
 
 
-#[derive(Default,Debug)]
+#[derive(Default,Debug,Clone)]
 pub struct Single_Line {
     pub points: Vec<Pos2>,
     pub stroke: Stroke,
@@ -84,7 +84,7 @@ impl Single_Line {
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default,Debug,Clone)]
 pub struct Circle{
     pub center: Pos2,
     pub radius: f32,
@@ -99,7 +99,7 @@ impl Circle {
     }    
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Rectangle{
     pub rect: Rect,
     pub first_point: Pos2,
@@ -120,7 +120,7 @@ impl Rectangle {
 }
 
 
-#[derive(Default,Debug)]
+#[derive(Default,Debug,Clone)]
 pub struct Segment{
     pub points: [Pos2;2],
     pub stroke: Stroke
@@ -163,4 +163,52 @@ impl Text {
         }
         
     }
+}
+
+#[derive(Debug,Clone)]
+pub struct Crop {
+    pub left_top: Pos2,
+    pub first_point: Pos2,
+    pub rectangle: Rect,
+    pub rectangle_logical: Rect,
+    pub first_point_logical: Pos2,
+}
+
+impl Default for Crop {
+    fn default() -> Self {
+        Crop {
+            left_top: Pos2::ZERO,
+            first_point: Pos2::ZERO,
+            rectangle: Rect::NAN, // Assuming Rect has a NAN associated constant or constructor
+            rectangle_logical: Rect::NAN,
+            first_point_logical: Pos2::ZERO,
+        }
+    }
+}
+
+impl Crop {
+    // pub fn new(point: Pos2) -> Self {
+    //     Crop {
+    //         left_top
+    //         first_point: point,
+    //         rectangle: Rect::NAN, // Assuming Rect has a NAN associated constant or constructor 
+    //     }
+    // }
+
+    pub fn from_two_point(&mut self,point: Pos2){
+        self.rectangle = Rect::from_two_pos(self.first_point,point);
+}
+
+    pub fn from_two_point_logical(&mut self,point: Pos2){
+    self.rectangle_logical = Rect::from_two_pos(self.first_point_logical,point);
+}
+}
+
+
+
+#[derive(Debug,Clone)]
+pub enum Last_Action {
+    Crop(Pos2),
+    Annotation,
+    Erase
 }
