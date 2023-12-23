@@ -1,3 +1,4 @@
+use crate::wrapper_functions;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -30,9 +31,10 @@ use std::thread::sleep;
 use std::time::Duration;
 use arboard::{Clipboard, ImageData};
 use std::io::stdout;
+use screenshots::{Screen, display_info};
 use crate::icons::*;
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>){
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, monitor_used: &mut usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>){
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
             menu::bar(ui, |ui| {
 
@@ -46,17 +48,8 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                     }
                 }).response.on_hover_text("Change your Settings");; //.on_hover_text("Take a Screenshot");
 
-
-
                 if ui.button("Screenshots").on_hover_text("Take a Screenshot").clicked() {
-                    *image = screen::screenshot().unwrap();
-                    let flat_image: image::FlatSamples<&[u8]> = image.as_flat_samples();
-                    let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize],flat_image.samples);
-                    let image_data = egui::ImageData::from(color_image2);
-                    *texture = Some(ui.ctx().load_texture("screen", image_data, Default::default()));
-                    *schermata = Schermata::Edit;
-                    story_image.push(image.clone());
-                    story_texture.push(texture.clone());
+                    screen::make_screenshot(ui.ctx(), image, texture, schermata, *monitor_used,story_image,story_texture)
                 }
                     
             });
@@ -96,6 +89,18 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                     ui.end_row();
                     ui.label("File name:");
                     ui.label(name_convention.clone());
+
+                    ui.end_row();
+                    ui.end_row();
+
+                    if *monitor_used == 9999{
+                        let text = format!("All monitors are being used");
+                        ui.label(text);
+                    }
+                    else{
+                        let text = format!("Monitor {} is being used", (*monitor_used + 1));
+                        ui.label(text);
+                    }
                     
 
                 });
@@ -103,7 +108,7 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
     });    
 }
 
-pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, last_index: &mut Option<usize>, mode: &mut EditType, crop: &mut Crop, last_actions: &mut  Vec<Last_Action>,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>,garbage: &mut Vec<Draws>){
+pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, last_index: &mut Option<usize>, mode: &mut EditType,crop: &mut Crop, last_actions: &mut  Vec<Last_Action>,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>,garbage: &mut Vec<Draws>){
     //sleep(Duration::from_millis(200));
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
         menu::bar(ui, |ui| {
@@ -114,41 +119,22 @@ pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<T
                 *texture = None; //e setta a null la textureHandle
                 crop.left_top = Pos2::ZERO;
                 draws.clear();
+                story_image.clear();
+                story_texture.clear();
+                last_actions.clear();
             }
 
             if ui.button("Save").clicked(){
-                let now = Utc::now();
-                let ts = now.timestamp(); //add timestamp in the name convention, in order to have unique files
-
-                // Save the DynamicImage to a file
-                let dynamic_image = DynamicImage::ImageRgba8(rgba_image.clone());                
-                if(*save_path != PathBuf::default()) {
-                    let output_path = format!("{}\\{}_{}{}", save_path.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
-                    dynamic_image.save_with_format(output_path, ImageFormat::Jpeg).expect("Failed to save image");
-                }
-                else {
-                    let p = FileDialog::new().set_directory("/").pick_folder();
-                    if(p.is_none()) { }
-                    else{
-                        let mut path_tmp = p.unwrap();
-                        let output_path = format!("{}\\{}_{}{}", path_tmp.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
-                        dynamic_image.save_with_format(output_path, ImageFormat::Jpeg).expect("Failed to save image");
-                    }   
-                }
+                wrapper_functions::save_image(rgba_image, save_path, name_convention, file_format, draws)
             }
 
             if ui.button("Copy").on_hover_text("Copy the Screenshot to Clipboard").clicked() {
-                // Copy the image to the clipboard
-                let mut ctx_clip = Clipboard::new().unwrap();
-                let clipboard_image = DynamicImage::ImageRgba8(rgba_image.clone());
-                let image_bytes = clipboard_image.into_bytes();
-                #[rustfmt::skip]
-                let img_data = ImageData { width: rgba_image.width() as usize, height: rgba_image.height() as usize, bytes: image_bytes.into() };
-                ctx_clip.set_image(img_data).unwrap();
+                wrapper_functions::copy_to_clipboard(rgba_image);
             }
         });
 
         ui.add_space(30.0);
+
         if !(texture.is_none()) { 
             ui.vertical_centered(|ui| {
                 let mut padding = ui.max_rect();
@@ -159,64 +145,63 @@ pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<T
                     ui.advance_cursor_after_rect(padding);
                 }                
                 let mut edited_image = Image::new(texture.as_ref().unwrap()).max_size(ui.available_size()).maintain_aspect_ratio(true).shrink_to_fit().ui(ui);
-                    let texture_rect2 = egui::Rect::from_min_size(Pos2::ZERO, texture.clone().unwrap().size_vec2()); //rettangolo della dimensione dell'immagine
-                    println!("crop first point: {:?}",crop.left_top);
-                    //println!("number of actions: {:?}",last_actions.len());
-                    let texture_rect = egui::Rect::from_min_size(crop.left_top, texture.clone().unwrap().size_vec2()); //rettangolo della dimensione dell'immagine
-                    let screen_rect = eframe::emath::RectTransform::from_to(texture_rect,edited_image.rect);
-                    let painter = Painter::new(ctx.clone(),edited_image.layer_id,edited_image.rect);
-                    match mode {
-                        EditType::Circle => {
-                            edit::write_circles(draws, ui,screen_rect.inverse(),stroke,last_actions);
-                            
-                        }
-                        EditType::Rectangle => {
-                            edit::write_rects(draws, ui, screen_rect.inverse(),stroke,last_actions);
-                            
-                        }
-                        EditType::Free => {
-                            edit::write_lines( draws, ui,screen_rect.inverse(),stroke,last_actions);
-                            
-                        }
-                        EditType::Text => {
-                            edit::write_text(&painter, draws, ui, screen_rect.inverse(),last_index,stroke,last_actions);
-                            if last_index.is_some()  {
-                                edit::read_keyboard_input(ui, draws[last_index.unwrap()].to_text().unwrap(),last_index);
-                            }
-                        }
-                        EditType::Segment => {
-                            edit::write_segments(draws, ui,screen_rect.inverse(),stroke,last_actions);
-                            
-                        }
-                        EditType::Eraser => {
-                            edit::erase_edit(draws, ui, screen_rect.inverse(),&painter,garbage,last_actions);
-
-                        }
-                        EditType::Crop => {
-                            let screen_rect2 = eframe::emath::RectTransform::from_to(texture_rect2,edited_image.rect);
-                            edit::crop_rectangle(crop,ui,screen_rect.inverse(),screen_rect2.inverse());
-                            let min = screen_rect2.transform_pos(crop.rectangle.left_top());
-                            let max = screen_rect2.transform_pos(crop.rectangle.right_bottom());
-                            let shape = egui::Shape::rect_stroke(Rect::from_min_max(min,max), epaint::Rounding::ZERO, Stroke::new(3.0, Color32::from_rgb(255,255,255)));
-                            let shape_filled = egui::Shape::rect_filled(Rect::from_min_max(min,max), epaint::Rounding::ZERO, Color32::from_rgba_unmultiplied(90, 90, 82, 60));
-                            print_draws3(&painter, draws, screen_rect,last_index);
-                            painter.add(shape);
-                            painter.add(shape_filled);
-                            edit::crop_image(crop, texture, rgba_image, &painter, ui,last_actions,story_image,story_texture);
-                            
-                        }
-                        _ => {
-
+                let texture_rect2 = egui::Rect::from_min_size(Pos2::ZERO, texture.clone().unwrap().size_vec2()); //rettangolo della dimensione dell'immagine
+                println!("crop first point: {:?}",crop.left_top);
+                //println!("number of actions: {:?}",last_actions.len());
+                let texture_rect = egui::Rect::from_min_size(crop.left_top, texture.clone().unwrap().size_vec2()); //rettangolo della dimensione dell'immagine
+                let screen_rect = eframe::emath::RectTransform::from_to(texture_rect,edited_image.rect);
+                let painter = Painter::new(ctx.clone(),edited_image.layer_id,edited_image.rect);
+                match mode {
+                    EditType::Circle => {
+                        edit::write_circles(draws, ui,screen_rect.inverse(),stroke,last_actions);
+                        
+                    }
+                    EditType::Rectangle => {
+                        edit::write_rects(draws, ui, screen_rect.inverse(),stroke,last_actions);
+                        
+                    }
+                    EditType::Free => {
+                        edit::write_lines( draws, ui,screen_rect.inverse(),stroke,last_actions);
+                        
+                    }
+                    EditType::Text => {
+                        edit::write_text(&painter, draws, ui, screen_rect.inverse(),last_index,stroke,last_actions);
+                        if last_index.is_some()  {
+                            edit::read_keyboard_input(ui, draws[last_index.unwrap()].to_text().unwrap(),last_index);
                         }
                     }
-                    if *mode != EditType::Crop {
-                    print_draws3(&painter, draws, screen_rect,last_index);
+                    EditType::Segment => {
+                        edit::write_segments(draws, ui,screen_rect.inverse(),stroke,last_actions);
+                        
                     }
+                    EditType::Eraser => {
+                        edit::erase_edit(draws, ui, screen_rect.inverse(),&painter,garbage,last_actions);
+
+                    }
+                    EditType::Crop => {
+                        let screen_rect2 = eframe::emath::RectTransform::from_to(texture_rect2,edited_image.rect);
+                        edit::crop_rectangle(crop,ui,screen_rect.inverse(),screen_rect2.inverse());
+                        let min = screen_rect2.transform_pos(crop.rectangle.left_top());
+                        let max = screen_rect2.transform_pos(crop.rectangle.right_bottom());
+                        let shape = egui::Shape::rect_stroke(Rect::from_min_max(min,max), epaint::Rounding::ZERO, Stroke::new(3.0, Color32::from_rgb(255,255,255)));
+                        let shape_filled = egui::Shape::rect_filled(Rect::from_min_max(min,max), epaint::Rounding::ZERO, Color32::from_rgba_unmultiplied(90, 90, 82, 60));
+                        print_draws3(&painter, draws, screen_rect,last_index);
+                        painter.add(shape);
+                        painter.add(shape_filled);
+                        edit::crop_image(crop, texture, rgba_image, &painter, ui,last_actions,story_image,story_texture);
+                        
+                    }
+                    _ => {
+
+                    }
+                }
+                if *mode != EditType::Crop {
+                print_draws3(&painter, draws, screen_rect,last_index);
+                }
             });
         }
     });
 }
-
 
 fn add_edits_buttons(ui: &mut Ui, stroke: &mut Stroke, mode: &mut EditType,last_index: &mut Option<usize>, draws: &mut Vec<Draws>, last_actions: &mut  Vec<Last_Action>,rgba_image: &mut RgbaImage,texture : &mut Option<TextureHandle>,story_image : &mut Vec<RgbaImage>,story_texture : &mut Vec<Option<TextureHandle>>,crop: &mut Crop,garbage: &mut Vec<Draws>) {
     color_picker_and_width(ui, stroke);
@@ -285,9 +270,6 @@ fn add_edits_buttons(ui: &mut Ui, stroke: &mut Stroke, mode: &mut EditType,last_
     }
 
 }
-
-
-
 fn color_picker_and_width(ui: &mut Ui, stroke: &mut Stroke) {
     let size_points = egui::Vec2::new(128.0,32.0);
     let (id, rect) = ui.allocate_space(size_points);
@@ -301,9 +283,7 @@ fn color_picker_and_width(ui: &mut Ui, stroke: &mut Stroke) {
     
 }
 
-
-
-fn edit_single_button(ui: &mut Ui,image: &Image<'_>, mode: &EditType,current_mode: &EditType) -> Response {
+fn edit_single_button(ui: &mut Ui, image: &Image<'_>, mode: &EditType, current_mode: &EditType) -> Response {
     let size_points = egui::Vec2::splat(32.0);
     let (id, rect) = ui.allocate_space(size_points);
     let response = ui.interact(rect, id, Sense::click());
@@ -320,10 +300,110 @@ fn edit_single_button(ui: &mut Ui,image: &Image<'_>, mode: &EditType,current_mod
     .maintain_aspect_ratio(true)
     //.tint(tint)
     .fit_to_exact_size(size_points);
-//ui.add(Button::image(image));
     image.paint_at(ui, rect);
+    //ui.add(Button::image(image));
+
     response
 }
+
+// pub fn print_draws(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTransform) {
+//                     println!("Testo {:?}",draws);
+//                     //print_text(painter);
+//                     let shapes = 
+//                     draws
+//                     .iter()
+//                     .map(|draw| {
+                        
+//                         match draw {
+//                             Draws::Line(single_line) => {
+//                                 let points: Vec<Pos2> = single_line.points.iter().map(|p| screen_rect.transform_pos_clamped(*p)).collect();
+//                                 egui::Shape::line(points, Stroke::new(5.0,Color32::RED))
+//                             }
+//                             Draws::Circle(circle) => {
+//                                 // Gestisci il caso Circle
+//                                 let center = screen_rect.transform_pos_clamped(circle.center);
+//                                 let modify = screen_rect.from().width() / screen_rect.to().width();
+//                                 let radius = circle.radius / modify;
+//                                 egui::Shape::circle_stroke(center, radius,Stroke::new(5.0,Color32::RED))
+//                             }
+//                             Draws::Rect(rectange) => {
+//                                 // Gestisci il caso Circle
+//                                 let min = screen_rect.transform_pos_clamped(rectange.rect.min);
+//                                 let max = screen_rect.transform_pos_clamped(rectange.rect.max);
+//                                 egui::Shape::rect_stroke(Rect::from_min_max(min, max), epaint::Rounding::ZERO, Stroke::new(5.0,Color32::RED))
+//                             }
+//                             Draws::Text(text) => {
+//                                 // Gestisci il caso Circle
+//                                 println!("Testo {:?}",text);
+//                                 //let point = screen_rect.transform_pos_clamped(text.point);
+//                                 //println!("Punto: {:?}",point);
+//                                 println!("prima");
+//                                 //let point_1 = screen_rect.transform_pos_clamped(text.points[0]);
+//                                 //let point_2 = screen_rect.transform_pos_clamped(text.points[1]);
+//                                 //print_text(painter);
+//                                 //let galley = painter.layout_no_wrap(text.letters.clone(), FontId::monospace(32.0), Color32::RED);
+//                                 //stdout().flush();
+//                                 let galley = painter.fonts(|f|f.layout("Ciao bella\n".into(), FontId::proportional(1.0), Color32::RED, f32::INFINITY));
+//                                 println!("dopo");
+//                                 //egui::Shape::Text(TextShape::new(point, galley))
+//                                 //egui::Shape::line_segment([point_1,point_2],Stroke::new(5.0,Color32::RED))
+//                                 //text.render(painter, screen_rect)
+//                                 egui::Shape::Noop
+//                             }
+//                             Draws::Segment(segment) => {
+//                                 // Gestisci il caso Circle
+//                                 let point_1 = screen_rect.transform_pos_clamped(segment.points[0]);
+//                                 let point_2 = screen_rect.transform_pos_clamped(segment.points[1]);
+//                                 egui::Shape::line_segment([point_1,point_2],Stroke::new(5.0,Color32::RED))
+//                             }
+//                             // Utilizza l'underscore per trattare tutti gli altri casi
+//                             _ => {
+//                                 egui::Shape::Noop
+//                             }
+//                         }
+//                     });
+//                     painter.extend(shapes);
+// }
+
+// pub fn print_draws2(painter: &Painter, draws: &mut Vec<Draws>,screen_rect: RectTransform) {
+//     println!("Testo {:?}",draws);
+//     println!("prima2");
+//     let shapes = draws.iter().for_each(|dr| {
+//         println!("Testo2 {:?}",dr);
+//         // print_text(painter);
+//         match dr {
+//             Draws::Line(single_line) => {
+//                 let points: Vec<Pos2> = single_line.points.iter().map(|p| screen_rect.transform_pos_clamped(*p)).collect();
+//                 //egui::Shape::line(points, Stroke::new(5.0,Color32::RED))
+//             }
+//             Draws::Circle(circle) => {
+//                 // Gestisci il caso Circle
+//                 let center = screen_rect.transform_pos_clamped(circle.center);
+//                 let modify = screen_rect.from().width() / screen_rect.to().width();
+//                 let radius = circle.radius / modify;
+//                 //egui::Shape::circle_stroke(center, radius,Stroke::new(5.0,Color32::RED))
+//             }
+//             Draws::Rect(rectange) => {
+//                 // Gestisci il caso Circle
+//                 let min = screen_rect.transform_pos_clamped(rectange.rect.min);
+//                 let max = screen_rect.transform_pos_clamped(rectange.rect.max);
+//                 //egui::Shape::rect_stroke(Rect::from_min_max(min, max), epaint::Rounding::ZERO, Stroke::new(5.0,Color32::RED))
+//             }
+//             Draws::Text(text) => {
+//                 println!("dentro text================================");
+//                 print_text(painter,text.letters.clone());
+//                 //egui::Shape::Noop
+//             }
+//             _ => {
+//                 //print_text(painter);
+//                 println!("tutto");
+//                 //egui::Shape::Noop
+//             }
+//         }
+        
+//     });
+//     println!("dopo2");
+// }
 
 pub fn print_draws3(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTransform,last_index: &mut Option<usize>) {
     let mut shape: Vec<Shape> = Vec::new();
@@ -387,9 +467,7 @@ pub fn print_draws3(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTrans
     painter.extend(shape);
 }
 
-
-
-pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code, update_file: &mut bool){
+pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code, update_file: &mut bool){
     let window_size = egui::vec2(0.0, 0.0);
 
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
@@ -417,48 +495,7 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
                     ui.selectable_value(modifier_copy_tmp, Modifiers::ALT, "Alt");
                 });
 
-                egui::ComboBox::from_id_source("Choose Key copy")
-                .selected_text(format!("{:?}", key_copy_tmp))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(key_copy_tmp, Code::KeyA, "KeyA");
-                    ui.selectable_value(key_copy_tmp, Code::KeyB, "KeyB");
-                    ui.selectable_value(key_copy_tmp, Code::KeyC, "KeyC");
-                    ui.selectable_value(key_copy_tmp, Code::KeyD, "KeyD");
-                    ui.selectable_value(key_copy_tmp, Code::KeyE, "KeyE");
-                    ui.selectable_value(key_copy_tmp, Code::KeyF, "KeyF");
-                    ui.selectable_value(key_copy_tmp, Code::KeyG, "KeyG");
-                    ui.selectable_value(key_copy_tmp, Code::KeyH, "KeyH");
-                    ui.selectable_value(key_copy_tmp, Code::KeyI, "KeyI");
-                    ui.selectable_value(key_copy_tmp, Code::KeyJ, "KeyJ");
-                    ui.selectable_value(key_copy_tmp, Code::KeyK, "KeyK");
-                    ui.selectable_value(key_copy_tmp, Code::KeyL, "KeyL");
-                    ui.selectable_value(key_copy_tmp, Code::KeyM, "KeyM");
-                    ui.selectable_value(key_copy_tmp, Code::KeyN, "KeyN");
-                    ui.selectable_value(key_copy_tmp, Code::KeyO, "KeyO");
-                    ui.selectable_value(key_copy_tmp, Code::KeyP, "KeyP");
-                    ui.selectable_value(key_copy_tmp, Code::KeyQ, "KeyQ");
-                    ui.selectable_value(key_copy_tmp, Code::KeyR, "KeyR");
-                    ui.selectable_value(key_copy_tmp, Code::KeyS, "KeyS");
-                    ui.selectable_value(key_copy_tmp, Code::KeyT, "KeyT");
-                    ui.selectable_value(key_copy_tmp, Code::KeyU, "KeyU");
-                    ui.selectable_value(key_copy_tmp, Code::KeyV, "KeyV");
-                    ui.selectable_value(key_copy_tmp, Code::KeyW, "KeyW");
-                    ui.selectable_value(key_copy_tmp, Code::KeyX, "KeyX");
-                    ui.selectable_value(key_copy_tmp, Code::KeyY, "KeyY");
-                    ui.selectable_value(key_copy_tmp, Code::KeyZ, "KeyZ");
-                    ui.selectable_value(key_copy_tmp, Code::F1, "F1");
-                    ui.selectable_value(key_copy_tmp, Code::F2, "F2");
-                    ui.selectable_value(key_copy_tmp, Code::F3, "F3");
-                    ui.selectable_value(key_copy_tmp, Code::F5, "F5");
-                    ui.selectable_value(key_copy_tmp, Code::F6, "F6");
-                    ui.selectable_value(key_copy_tmp, Code::F7, "F7");
-                    ui.selectable_value(key_copy_tmp, Code::F8, "F8");
-                    ui.selectable_value(key_copy_tmp, Code::F9, "F9");
-                    ui.selectable_value(key_copy_tmp, Code::F10, "F10");
-                    ui.selectable_value(key_copy_tmp, Code::F11, "F11");
-                    ui.selectable_value(key_copy_tmp, Code::F12, "F12");
-                    //... aggiungere altre keys nel caso sia necessario ...
-                });
+                wrapper_functions::show_combo_box(ui, key_copy_tmp, "Copy key".to_string());
 
                 ui.end_row();
 
@@ -472,48 +509,7 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
                     ui.selectable_value(modifier_screen_tmp, Modifiers::ALT, "Alt");
                 });
 
-                egui::ComboBox::from_id_source("Choose Key screen")
-                .selected_text(format!("{:?}", key_screen_tmp))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(key_screen_tmp, Code::KeyA, "KeyA");
-                    ui.selectable_value(key_screen_tmp, Code::KeyB, "KeyB");
-                    ui.selectable_value(key_screen_tmp, Code::KeyC, "KeyC");
-                    ui.selectable_value(key_screen_tmp, Code::KeyD, "KeyD");
-                    ui.selectable_value(key_screen_tmp, Code::KeyE, "KeyE");
-                    ui.selectable_value(key_screen_tmp, Code::KeyF, "KeyF");
-                    ui.selectable_value(key_screen_tmp, Code::KeyG, "KeyG");
-                    ui.selectable_value(key_screen_tmp, Code::KeyH, "KeyH");
-                    ui.selectable_value(key_screen_tmp, Code::KeyI, "KeyI");
-                    ui.selectable_value(key_screen_tmp, Code::KeyJ, "KeyJ");
-                    ui.selectable_value(key_screen_tmp, Code::KeyK, "KeyK");
-                    ui.selectable_value(key_screen_tmp, Code::KeyL, "KeyL");
-                    ui.selectable_value(key_screen_tmp, Code::KeyM, "KeyM");
-                    ui.selectable_value(key_screen_tmp, Code::KeyN, "KeyN");
-                    ui.selectable_value(key_screen_tmp, Code::KeyO, "KeyO");
-                    ui.selectable_value(key_screen_tmp, Code::KeyP, "KeyP");
-                    ui.selectable_value(key_screen_tmp, Code::KeyQ, "KeyQ");
-                    ui.selectable_value(key_screen_tmp, Code::KeyR, "KeyR");
-                    ui.selectable_value(key_screen_tmp, Code::KeyS, "KeyS");
-                    ui.selectable_value(key_screen_tmp, Code::KeyT, "KeyT");
-                    ui.selectable_value(key_screen_tmp, Code::KeyU, "KeyU");
-                    ui.selectable_value(key_screen_tmp, Code::KeyV, "KeyV");
-                    ui.selectable_value(key_screen_tmp, Code::KeyW, "KeyW");
-                    ui.selectable_value(key_screen_tmp, Code::KeyX, "KeyX");
-                    ui.selectable_value(key_screen_tmp, Code::KeyY, "KeyY");
-                    ui.selectable_value(key_screen_tmp, Code::KeyZ, "KeyZ");
-                    ui.selectable_value(key_screen_tmp, Code::F1, "F1");
-                    ui.selectable_value(key_screen_tmp, Code::F2, "F2");
-                    ui.selectable_value(key_screen_tmp, Code::F3, "F3");
-                    ui.selectable_value(key_screen_tmp, Code::F5, "F5");
-                    ui.selectable_value(key_screen_tmp, Code::F6, "F6");
-                    ui.selectable_value(key_screen_tmp, Code::F7, "F7");
-                    ui.selectable_value(key_screen_tmp, Code::F8, "F8");
-                    ui.selectable_value(key_screen_tmp, Code::F9, "F9");
-                    ui.selectable_value(key_screen_tmp, Code::F10, "F10");
-                    ui.selectable_value(key_screen_tmp, Code::F11, "F11");
-                    ui.selectable_value(key_screen_tmp, Code::F12, "F12");
-                    //... aggiungere altre keys nel caso sia necessario ...
-                });
+                wrapper_functions::show_combo_box(ui, key_screen_tmp, "Screen key".to_string());
 
                 ui.end_row();
 
@@ -527,48 +523,7 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
                     ui.selectable_value(modifier_save_tmp, Modifiers::ALT, "Alt");
                 });
 
-                egui::ComboBox::from_id_source("Choose Key save")
-                .selected_text(format!("{:?}", key_save_tmp))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(key_save_tmp, Code::KeyA, "KeyA");
-                    ui.selectable_value(key_save_tmp, Code::KeyB, "KeyB");
-                    ui.selectable_value(key_save_tmp, Code::KeyC, "KeyC");
-                    ui.selectable_value(key_save_tmp, Code::KeyD, "KeyD");
-                    ui.selectable_value(key_save_tmp, Code::KeyE, "KeyE");
-                    ui.selectable_value(key_save_tmp, Code::KeyF, "KeyF");
-                    ui.selectable_value(key_save_tmp, Code::KeyG, "KeyG");
-                    ui.selectable_value(key_save_tmp, Code::KeyH, "KeyH");
-                    ui.selectable_value(key_save_tmp, Code::KeyI, "KeyI");
-                    ui.selectable_value(key_save_tmp, Code::KeyJ, "KeyJ");
-                    ui.selectable_value(key_save_tmp, Code::KeyK, "KeyK");
-                    ui.selectable_value(key_save_tmp, Code::KeyL, "KeyL");
-                    ui.selectable_value(key_save_tmp, Code::KeyM, "KeyM");
-                    ui.selectable_value(key_save_tmp, Code::KeyN, "KeyN");
-                    ui.selectable_value(key_save_tmp, Code::KeyO, "KeyO");
-                    ui.selectable_value(key_save_tmp, Code::KeyP, "KeyP");
-                    ui.selectable_value(key_save_tmp, Code::KeyQ, "KeyQ");
-                    ui.selectable_value(key_save_tmp, Code::KeyR, "KeyR");
-                    ui.selectable_value(key_save_tmp, Code::KeyS, "KeyS");
-                    ui.selectable_value(key_save_tmp, Code::KeyT, "KeyT");
-                    ui.selectable_value(key_save_tmp, Code::KeyU, "KeyU");
-                    ui.selectable_value(key_save_tmp, Code::KeyV, "KeyV");
-                    ui.selectable_value(key_save_tmp, Code::KeyW, "KeyW");
-                    ui.selectable_value(key_save_tmp, Code::KeyX, "KeyX");
-                    ui.selectable_value(key_save_tmp, Code::KeyY, "KeyY");
-                    ui.selectable_value(key_save_tmp, Code::KeyZ, "KeyZ");
-                    ui.selectable_value(key_save_tmp, Code::F1, "F1");
-                    ui.selectable_value(key_save_tmp, Code::F2, "F2");
-                    ui.selectable_value(key_save_tmp, Code::F3, "F3");
-                    ui.selectable_value(key_save_tmp, Code::F5, "F5");
-                    ui.selectable_value(key_save_tmp, Code::F6, "F6");
-                    ui.selectable_value(key_save_tmp, Code::F7, "F7");
-                    ui.selectable_value(key_save_tmp, Code::F8, "F8");
-                    ui.selectable_value(key_save_tmp, Code::F9, "F9");
-                    ui.selectable_value(key_save_tmp, Code::F10, "F10");
-                    ui.selectable_value(key_save_tmp, Code::F11, "F11");
-                    ui.selectable_value(key_save_tmp, Code::F12, "F12");
-                    //... aggiungere altre keys nel caso sia necessario ...
-                });
+                wrapper_functions::show_combo_box(ui, key_save_tmp, "Save key".to_string());
 
                 ui.end_row();
             });
@@ -628,6 +583,7 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
 
                             el.0 = *modifier_copy;
                             el.1 = *key_copy;
+                            el.3 = hotkey_copy.id();
                         }
                     }
                     else if el.2 == "Screen".to_string(){
@@ -640,6 +596,7 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
 
                             el.0 = *modifier_screen;
                             el.1 = *key_screen;
+                            el.3 = hotkey_screen.id();
                         }
                     }
                     else { //if el.2 == "Save".to_string()
@@ -652,21 +609,23 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
 
                             el.0 = *modifier_save;
                             el.1 = *key_save;
+                            el.3 = hotkey_save.id();
+
                         }
                     }
                 }
 
                 ((*manager).0).unregister_all(&hotkeys_to_delete).unwrap();
                 ((*manager).0).register_all(&hotkeys_to_save).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
-                
+
                 *update_file = true;
                 *schermata = Schermata::Home; 
             }
         }
-        });
+    });
 }
 
-pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String, update_file: &mut bool){
+pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String, update_file: &mut bool, monitor_used: &mut usize, monitor_used_tmp: &mut usize){
     let window_size = egui::vec2(0.0, 0.0);
 
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
@@ -731,7 +690,34 @@ pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_forma
                     ui.label("CHOOSE FILE NAME");
                     ui.end_row();
                     ui.add(egui::TextEdit::singleline(name_convention_tmp));
-                    //aggiungere la parte relativa alle convenzioni sul nome del file da salvare (con auto incremento)
+                    
+                    ui.end_row();
+                    ui.end_row();
+
+                    let display_infos: Vec<display_info::DisplayInfo> = screenshots::display_info::DisplayInfo::all().unwrap();
+
+                    if display_infos.len() == 1{
+                        let text = format!("Monitor {} is being used", (*monitor_used + 1));
+                        ui.label(text);
+                    }
+
+                    else{                        
+                        egui::ComboBox::from_label("Choose monitor")
+                        .selected_text(
+                            if *monitor_used_tmp != 9999 {
+                                format!("{}", (*monitor_used_tmp + 1))
+                            } else {
+                                String::from("All")
+                            }
+                        )
+                        .show_ui(ui, |ui| {
+                            for (i, _)  in display_infos.iter().enumerate(){
+                                ui.selectable_value(monitor_used_tmp, i, (i+1).to_string());
+                            }
+                            //the following one is used in case i want a screenshot af all the screens
+                            ui.selectable_value(monitor_used_tmp, 9999, "All".to_string());
+                        });
+                    }
                 });
 
                 ui.add_space(30.0);
@@ -740,15 +726,17 @@ pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_forma
                     *save_path_tmp = save_path.clone();
                     *file_format_tmp = file_format.clone();
                     *name_convention_tmp = name_convention.clone();
+                    *monitor_used_tmp = *monitor_used;
                     *schermata = Schermata::Home;
                 }
 
-                ui.set_enabled((*save_path != save_path_tmp.clone()) || (*file_format != file_format_tmp.clone()) || (*name_convention != *name_convention_tmp));
+                ui.set_enabled((*save_path != save_path_tmp.clone()) || (*file_format != file_format_tmp.clone()) || (*name_convention != *name_convention_tmp) || (*monitor_used != *monitor_used_tmp));
 
                 if ui.button("Salva modifiche").clicked(){
                     *save_path = save_path_tmp.clone();
                     *file_format = file_format_tmp.clone(); 
                     *name_convention = name_convention_tmp.clone();
+                    *monitor_used = *monitor_used_tmp;
 
                     *update_file = true; //in order to update the default initial settings
                     *schermata = Schermata::Home; 
