@@ -115,6 +115,8 @@ struct Windows {
     monitor_used: usize,
     monitor_used_tmp: usize,
     num_monitors: usize,
+    //screenshot
+    free_to_screenshots: bool
 
 }
 
@@ -220,6 +222,7 @@ impl Windows {
         Self {
             //text_focused: Box::new(Text::new()),
             //draws: vec![Draws::Text(Text::new())],
+            free_to_screenshots: false,
             stroke: Stroke::new(3.0, egui::Color32::from_rgba_premultiplied(200, 195, 25, 255)),
             manager: manager,
             change_size: false, 
@@ -278,6 +281,13 @@ impl eframe::App for Windows {
    fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
     //eframe::egui::Context::set_pixels_per_point(ctx, 1.0);
     
+    if self.free_to_screenshots {
+        let ten_millis = Duration::from_millis(500);
+        sleep(ten_millis);
+        self.free_to_screenshots = false;
+        screen::make_screenshot(ctx,  &mut self.image, &mut self.texture, &mut self.schermata,  self.monitor_used,&mut self.story_image,&mut self.story_texture);
+        
+    }
 
     match self.schermata {
         Schermata::Home => { // frame.info.window_size substituted by ctx.screen_rect().size() 
@@ -285,7 +295,7 @@ impl eframe::App for Windows {
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into()))); //set_window_size substituted by ctx.send....
                 self.change_size = true;
             }
-            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.monitor_used,&mut self.story_image,&mut self.story_texture);
+            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.monitor_used,&mut self.story_image,&mut self.story_texture,&mut self.free_to_screenshots);
         },
         Schermata::Edit => {
             if ctx.screen_rect().size() != [800.0, 620.0].into() && self.change_size{
