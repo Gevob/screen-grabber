@@ -34,7 +34,7 @@ use std::io::stdout;
 use screenshots::{Screen, display_info};
 use crate::icons::*;
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, monitor_used: &mut usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>){
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, monitor_used: &mut usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>,free_to_screenshot: &mut bool){
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
             menu::bar(ui, |ui| {
 
@@ -49,7 +49,8 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                 }).response.on_hover_text("Change your Settings");; //.on_hover_text("Take a Screenshot");
 
                 if ui.button("Screenshots").on_hover_text("Take a Screenshot").clicked() {
-                    screen::make_screenshot(ui.ctx(), image, texture, schermata, *monitor_used,story_image,story_texture)
+                    ctx.send_viewport_cmd(viewport::ViewportCommand::Minimized(true.into()));
+                    *free_to_screenshot = true;
                 }
                     
             });
