@@ -936,7 +936,7 @@ pub fn setting_timer(ctx: &egui::Context, schermata: &mut Schermata, delay_durat
                 ui.add_space(30.0);
 
                 if ui.button("Chiudi").clicked(){
-                    *delay_tmp = (*delay_duration).as_secs() as u64; 
+                    *delay_tmp = (*delay_duration).as_secs() as u64;
                     *schermata = Schermata::Home;
                 }
 

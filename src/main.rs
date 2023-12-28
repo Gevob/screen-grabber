@@ -263,7 +263,7 @@ impl Windows {
             key_save: key_save,
             key_save_tmp: key_save,
             start_time: start_time,
-            delay_duration: Duration::from_secs(0), // 0 seconds delay 
+            delay_duration: Duration::from_secs(0), // 0 seconds delay
             timer_expired: true,
             start_timer: false,
             delay_tmp: 0,
