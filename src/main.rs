@@ -16,8 +16,8 @@ use egui::*;
 use image::RgbaImage;
 use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Modifiers, Code}};
 use std::ptr;
-use std::thread::sleep;
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 use arboard::{Clipboard, ImageData as OtherImageData};
 use image::DynamicImage;
 use std::fs::File;
@@ -70,6 +70,14 @@ impl Default for MyGlobalHotKeyManager {
     }
 }
 
+pub struct MyInstant(Instant);
+
+impl Default for MyInstant {
+    fn default() -> Self {
+        MyInstant(Instant::now())
+    }
+}
+
 #[derive(Default)]
 struct Windows {
     schermata: Schermata,
@@ -116,7 +124,14 @@ struct Windows {
     monitor_used_tmp: usize,
     num_monitors: usize,
     //screenshot
-    free_to_screenshots: bool
+    free_to_screenshots: bool,
+
+    //gestione delay timer
+    start_time: MyInstant,
+    delay_duration: Duration,
+    timer_expired: bool,
+    start_timer: bool,
+    delay_tmp: u64,
 
 }
 
@@ -127,6 +142,7 @@ pub enum Schermata {
     Edit,
     Setting_Hotkey,
     Setting_Saving,
+    Setting_Timer,
 }
 
 //indica il tipo di editing
@@ -169,6 +185,7 @@ impl Windows {
         let mut key_copy = Code::default();
         let mut key_screen = Code::default();
         let mut key_save = Code::default();
+        let mut start_time = MyInstant::default();
         let display_infos: Vec<display_info::DisplayInfo> = screenshots::display_info::DisplayInfo::all().unwrap();
 
         //set_font_style(&cc.egui_ctx);
@@ -245,6 +262,11 @@ impl Windows {
             key_screen_tmp: key_screen,
             key_save: key_save,
             key_save_tmp: key_save,
+            start_time: start_time,
+            delay_duration: Duration::from_secs(0), // 5 seconds delay
+            timer_expired: true,
+            start_timer: false,
+            delay_tmp: 0,
             monitor_used: 0, //uso solo il primo monitor di default
             monitor_used_tmp: 0, //uso solo il primo monitor di default
             num_monitors: display_infos.len(),
@@ -280,13 +302,24 @@ impl Windows {
 impl eframe::App for Windows {
    fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
     //eframe::egui::Context::set_pixels_per_point(ctx, 1.0);
+
+    if self.start_timer {
+        std::thread::sleep(Duration::from_millis(200));
+        let handle = timing(self.start_time.0, self.delay_duration);
+        self.timer_expired = handle.join().unwrap();
+        self.start_timer = false;
+    }
+
+    if !{self.timer_expired} {
+        self.timer_expired=true;
+        self.free_to_screenshots = true;
+    }
     
     if self.free_to_screenshots {
-        let ten_millis = Duration::from_millis(500);
-        sleep(ten_millis);
+        if self.delay_duration.is_zero() {std::thread::sleep(Duration::from_millis(200));}
         self.free_to_screenshots = false;
-        screen::make_screenshot(ctx,  &mut self.image, &mut self.texture, &mut self.schermata,  self.monitor_used,&mut self.story_image,&mut self.story_texture);
-        
+        screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used,&mut self.story_image,&mut self.story_texture);
+        //ctx.send_viewport_cmd(viewport::ViewportCommand::WindowLevel(crate::WindowLevel::Normal));
     }
 
     match self.schermata {
@@ -295,7 +328,7 @@ impl eframe::App for Windows {
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into()))); //set_window_size substituted by ctx.send....
                 self.change_size = true;
             }
-            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.monitor_used,&mut self.story_image,&mut self.story_texture,&mut self.free_to_screenshots);
+            gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.monitor_used,&mut self.story_image,&mut self.story_texture,&mut self.free_to_screenshots, &mut self.start_time.0, &mut self.delay_duration, &mut self.start_timer);
         },
         Schermata::Edit => {
             if ctx.screen_rect().size() != [800.0, 620.0].into() && self.change_size{
@@ -317,6 +350,14 @@ impl eframe::App for Windows {
                 self.change_size = true;
             }
             gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp, &mut self.update_file, &mut self.monitor_used, &mut self.monitor_used_tmp);
+
+        },
+        Schermata::Setting_Timer=> {
+            if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
+                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
+                self.change_size = true;
+            }
+            gui::setting_timer(ctx, &mut self.schermata, &mut self.delay_duration, &mut self.delay_tmp);
 
         },
     }
@@ -353,5 +394,23 @@ impl eframe::App for Windows {
     //se il numero dello schermo usato è maggiore del numero di schermi, allora risettalo a zero
 
    }
+}
+
+fn timing(start_time : Instant, delay_duration : Duration) -> std::thread::JoinHandle<bool> {
+    let handle = std::thread::spawn(move || {
+        let mut stop : bool = true;
+        loop {
+            // Your timer logic goes here
+            // Check if the timer has expired and perform the necessary actions
+            if (Instant::now() - start_time) > delay_duration {
+                stop = false;
+                break;
+            }
+            // Sleep for a short duration to avoid unnecessary CPU usage
+            std::thread::sleep(Duration::from_millis(100)); // Adjust as needed
+        }
+        return stop;
+    });
+    return handle;
 }
 

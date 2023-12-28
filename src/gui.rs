@@ -27,14 +27,14 @@ use chrono::prelude::*;
 use std::io::{Cursor, Write};
 use image::io::Reader as ImageReader;
 use std::ptr;
-use std::thread::sleep;
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 use arboard::{Clipboard, ImageData};
 use std::io::stdout;
 use screenshots::{Screen, display_info};
 use crate::icons::*;
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, monitor_used: &mut usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>,free_to_screenshot: &mut bool){
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, monitor_used: &mut usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>, free_to_screenshot: &mut bool, start_time : &mut Instant, delay_duration : &mut Duration, start_timer: &mut bool){
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
             menu::bar(ui, |ui| {
 
@@ -46,11 +46,24 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                     if ui.button("Saving settings").on_hover_text("Customize default saving options").clicked() {
                         *schermata = Schermata::Setting_Saving;
                     }
+
+                    if ui.button("Timer settings").on_hover_text("Set a timer").clicked() {
+                        *schermata = Schermata::Setting_Timer;
+                    }
                 }).response.on_hover_text("Change your Settings");; //.on_hover_text("Take a Screenshot");
 
                 if ui.button("Screenshots").on_hover_text("Take a Screenshot").clicked() {
-                    ctx.send_viewport_cmd(viewport::ViewportCommand::Minimized(true.into()));
-                    *free_to_screenshot = true;
+                    if delay_duration.is_zero() {
+                        ctx.send_viewport_cmd(viewport::ViewportCommand::Minimized(true.into()));
+                        *free_to_screenshot = true;
+                    }
+                    else {
+                        ctx.send_viewport_cmd(viewport::ViewportCommand::Minimized(true.into()));
+                        //thread::sleep(Duration::from_millis(5000));
+                        *start_time = Instant::now();
+                        *start_timer = true;
+                    }
+                    
                 }
                     
             });
@@ -102,12 +115,25 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                         let text = format!("Monitor {} is being used", (*monitor_used + 1));
                         ui.label(text);
                     }
+
+                    ui.end_row();
+                    ui.end_row();
+
+                    if (*delay_duration).is_zero() {
+                        let text = format!("No timer selected");
+                        ui.label(text);
+                    }
+                    else{
+                        let text = format!("Timer: {} seconds", ((*delay_duration).as_secs() as u64));
+                        ui.label(text);
+                    }
                     
 
                 });
             });
     });    
 }
+
 
 pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, last_index: &mut Option<usize>, mode: &mut EditType,crop: &mut Crop, last_actions: &mut  Vec<Last_Action>,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>,garbage: &mut Vec<Draws>){
     //sleep(Duration::from_millis(200));
@@ -271,6 +297,7 @@ fn add_edits_buttons(ui: &mut Ui, stroke: &mut Stroke, mode: &mut EditType,last_
     }
 
 }
+
 fn color_picker_and_width(ui: &mut Ui, stroke: &mut Stroke) {
     let size_points = egui::Vec2::new(128.0,32.0);
     let (id, rect) = ui.allocate_space(size_points);
@@ -480,6 +507,9 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
                 if ui.button("Saving settings").clicked() {
                     *schermata = Schermata::Setting_Saving;
                 }
+                if ui.button("Timer settings").clicked() {
+                    *schermata = Schermata::Setting_Timer;
+                }
             });
         });
 
@@ -639,6 +669,10 @@ pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_forma
 
                 if ui.button("Saving settings").clicked() {
                     *schermata = Schermata::Setting_Saving;
+                }
+
+                if ui.button("Timer settings").clicked() {
+                    *schermata = Schermata::Setting_Timer;
                 }
             });
         });
@@ -864,4 +898,52 @@ pub fn String_to_hotkey(my_string: String) -> (Modifiers, Code){
     }  
 
     return result;
+}
+
+
+pub fn setting_timer(ctx: &egui::Context, schermata: &mut Schermata, delay_duration : &mut Duration, delay_tmp : &mut u64){
+    let window_size = egui::vec2(0.0, 0.0);
+
+    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
+
+        menu::bar(ui, |ui| {
+            ui.menu_button("Settings", |ui| {
+                if ui.button("Custom Hotkey").clicked() {
+                    *schermata = Schermata::Setting_Hotkey;
+                }
+
+                if ui.button("Saving settings").clicked() {
+                    *schermata = Schermata::Setting_Saving;
+                }
+
+                if ui.button("Timer settings").clicked() {
+                    *schermata = Schermata::Setting_Timer;
+                }
+            });
+        });
+
+        ui.add_space(20.0);
+        
+            egui::ComboBox::from_label("Choose a delay")
+                .selected_text(format!("{}", delay_tmp))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(delay_tmp, 0, "0 sec");
+                    ui.selectable_value(delay_tmp, 3, "3 sec");
+                    ui.selectable_value(delay_tmp, 5, "5 sec");
+                    ui.selectable_value(delay_tmp, 10, "10 sec");
+                });
+
+                ui.add_space(30.0);
+
+                if ui.button("Chiudi").clicked(){
+                    *schermata = Schermata::Home;
+                }
+
+                ui.set_enabled(*delay_duration != Duration::from_secs(*delay_tmp));
+
+                if ui.button("Salva modifiche").clicked(){
+                    *delay_duration = Duration::from_secs(*delay_tmp);
+                    *schermata = Schermata::Home; 
+                }
+            });
 }
