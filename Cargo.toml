@@ -18,6 +18,8 @@ rfd = "0.12.1"
 catppuccin-egui = "3.1.0"
 chrono = "0.4.31"
 arboard = "3.3.0"
+imageproc = "0.23.0"
+rusttype = "0.9.3"
 
 [profile.dev]
 opt-level = 2
