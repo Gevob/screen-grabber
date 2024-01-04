@@ -138,7 +138,8 @@ pub struct Text{
     pub point: Pos2,
     pub letters: String,
     pub stroke: Stroke,
-    pub focus: bool
+    pub focus: bool,
+    pub real_pos: Pos2,
 }
 
 
@@ -150,7 +151,8 @@ impl Text {
         Self { point: Pos2::default(),
              letters: String::from(""),
              focus: true,
-             stroke: *stroke}
+             stroke: *stroke,
+             real_pos: Pos2::default()}
     } 
 
     pub fn add_input(&mut self, input: &String)  {
