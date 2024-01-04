@@ -135,11 +135,11 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
 }
 
 
-pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, last_index: &mut Option<usize>, mode: &mut EditType,crop: &mut Crop, last_actions: &mut  Vec<Last_Action>,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>,garbage: &mut Vec<Draws>){
+pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, last_index: &mut Option<usize>, mode: &mut EditType,crop: &mut Crop, last_actions: &mut  Vec<Last_Action>,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>, garbage: &mut Vec<Draws>, last_crop: &mut Crop){
     //sleep(Duration::from_millis(200));
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
         menu::bar(ui, |ui| {
-            add_edits_buttons(ui, stroke, mode,last_index,draws,last_actions,rgba_image,texture,story_image,story_texture,crop,garbage);
+            add_edits_buttons(ui, stroke, mode,last_index,draws,last_actions,rgba_image,texture,story_image,story_texture,crop,garbage,last_crop);
             if ui.button("Discard").clicked() {
                 *schermata = Schermata::Home;
                 //elimina anche gli edit
@@ -152,11 +152,11 @@ pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<T
             }
 
             if ui.button("Save").clicked(){
-                wrapper_functions::save_image(rgba_image, save_path, name_convention, file_format, draws)
+                wrapper_functions::save_image(&mut story_image[0], save_path, name_convention, file_format, draws, last_crop);
             }
 
             if ui.button("Copy").on_hover_text("Copy the Screenshot to Clipboard").clicked() {
-                wrapper_functions::copy_to_clipboard(rgba_image);
+                wrapper_functions::copy_to_clipboard(&story_image[0], draws, last_crop.clone());
             }
         });
 
@@ -215,8 +215,7 @@ pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<T
                         print_draws3(&painter, draws, screen_rect,last_index);
                         painter.add(shape);
                         painter.add(shape_filled);
-                        edit::crop_image(crop, texture, rgba_image, &painter, ui,last_actions,story_image,story_texture);
-                        
+                        edit::crop_image(crop, texture, rgba_image, &painter, ui,last_actions,story_image,story_texture, draws, last_crop);
                     }
                     _ => {
 
@@ -230,7 +229,7 @@ pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<T
     });
 }
 
-fn add_edits_buttons(ui: &mut Ui, stroke: &mut Stroke, mode: &mut EditType,last_index: &mut Option<usize>, draws: &mut Vec<Draws>, last_actions: &mut  Vec<Last_Action>,rgba_image: &mut RgbaImage,texture : &mut Option<TextureHandle>,story_image : &mut Vec<RgbaImage>,story_texture : &mut Vec<Option<TextureHandle>>,crop: &mut Crop,garbage: &mut Vec<Draws>) {
+fn add_edits_buttons(ui: &mut Ui, stroke: &mut Stroke, mode: &mut EditType,last_index: &mut Option<usize>, draws: &mut Vec<Draws>, last_actions: &mut  Vec<Last_Action>,rgba_image: &mut RgbaImage,texture : &mut Option<TextureHandle>,story_image : &mut Vec<RgbaImage>,story_texture : &mut Vec<Option<TextureHandle>>,crop: &mut Crop, garbage: &mut Vec<Draws>, last_crop: &mut Crop) {
     color_picker_and_width(ui, stroke);
     if edit_single_button(ui,&CURSOR,mode,&EditType::Cursor).clicked(){
         *mode = EditType::Cursor;
@@ -282,6 +281,12 @@ fn add_edits_buttons(ui: &mut Ui, stroke: &mut Stroke, mode: &mut EditType,last_
                     //println!("crop before stack: {:?}",crop.left_top);
                     crop.left_top = *begin;
                     //println!("crop after stack: {:?}",crop.left_top);
+
+                    last_crop.rectangle_logical.set_left(begin.x);
+                    last_crop.rectangle_logical.set_top(begin.y);
+                    last_crop.rectangle_logical.set_width(rgba_image.width() as f32);
+                    last_crop.rectangle_logical.set_height(rgba_image.height() as f32);
+
                     story_image.pop();
                     story_texture.pop();
                     last_actions.pop();
@@ -685,17 +690,9 @@ pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_forma
                     ui.selectable_value(file_format_tmp, ".png".to_string(), "PNG");
                     ui.selectable_value(file_format_tmp, ".jpeg".to_string(), "JPEG");
                     ui.selectable_value(file_format_tmp, ".gif".to_string(), "GIF");
-                    ui.selectable_value(file_format_tmp, ".webp".to_string(), "WEBP");
-                    ui.selectable_value(file_format_tmp, ".pnm".to_string(), "PNM");
                     ui.selectable_value(file_format_tmp, ".tiff".to_string(), "TIFF");
                     ui.selectable_value(file_format_tmp, ".tga".to_string(), "TGA");
-                    ui.selectable_value(file_format_tmp, ".dds".to_string(), "DDS");
                     ui.selectable_value(file_format_tmp, ".bmp".to_string(), "BMP");
-                    ui.selectable_value(file_format_tmp, ".ico".to_string(), "ICO");
-                    ui.selectable_value(file_format_tmp, ".hdr".to_string(), "HDR");
-                    ui.selectable_value(file_format_tmp, ".openexr".to_string(), "OPENEXR");
-                    ui.selectable_value(file_format_tmp, ".farbfeld".to_string(), "FARBFELD");
-                    ui.selectable_value(file_format_tmp, ".avif".to_string(), "AVIF");
                     ui.selectable_value(file_format_tmp, ".qoi".to_string(), "QOI");
                 });
 
