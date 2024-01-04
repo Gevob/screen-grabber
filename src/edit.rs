@@ -344,7 +344,7 @@ pub fn crop_rectangle(crop: &mut Crop,ui: &mut Ui, original: RectTransform,physi
     
 }
 
-pub fn crop_image(crop: &mut Crop,texture : &mut Option<TextureHandle>,image: &mut RgbaImage, painter: &Painter,ui: &mut Ui, last_actions: &mut Vec<Last_Action>,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>) {
+pub fn crop_image(crop: &mut Crop, texture : &mut Option<TextureHandle>,image: &mut RgbaImage, painter: &Painter,ui: &mut Ui, last_actions: &mut Vec<Last_Action>,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>,  draws: &mut Vec<Draws>, last_crop: &mut Crop) {
 
     let input = ui.input(|i| i.events.clone() /*i.key_pressed(egui::Key::A)*/);
     input.iter().for_each(|event| {
@@ -362,6 +362,9 @@ pub fn crop_image(crop: &mut Crop,texture : &mut Option<TextureHandle>,image: &m
                 //crop.rectangle.height() as u32,
                 //image.width() as u32,
                 //image.height() as u32);
+
+                *last_crop = crop.clone();
+
                 let cropped_image = image.view( crop.rectangle.left_top().x as u32,
                     crop.rectangle.left_top().y as u32,
                     crop.rectangle.width() as u32,
