@@ -123,6 +123,8 @@ struct Windows {
     monitor_used: usize,
     monitor_used_tmp: usize,
     num_monitors: usize,
+    last_crop: Crop,
+
     //screenshot
     free_to_screenshots: bool,
 
@@ -335,7 +337,7 @@ impl eframe::App for Windows {
                 ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([800.0, 620.0].into())));
                 self.change_size = false;
             }
-            gui::edit(ctx, &mut self.draws, &mut self.texture, frame, &mut self.stroke, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.last_index, &mut self.mode,&mut self.crop, &mut self.last_actions, &mut self.story_image,&mut self.story_texture,&mut self.garbage);
+            gui::edit(ctx, &mut self.draws, &mut self.texture, frame, &mut self.stroke, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.last_index, &mut self.mode,&mut self.crop, &mut self.last_actions, &mut self.story_image,&mut self.story_texture,&mut self.garbage, &mut self.last_crop);
         },
         Schermata::Setting_Hotkey => {
             if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
@@ -367,14 +369,16 @@ impl eframe::App for Windows {
 
         for el in self.hotkeys_list.iter(){
             if event.id() == el.3 && el.2 == "Screen".to_string() {
-                screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used,&mut self.story_image, &mut self.story_texture)
+                //screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used,&mut self.story_image, &mut self.story_texture)
+                ctx.send_viewport_cmd(viewport::ViewportCommand::Minimized(true.into()));
+                self.free_to_screenshots = true;
             }
             else if event.id() == el.3 && el.2 == "Copy".to_string() && !(self.texture.is_none()) {
                 // Copy the image to the clipboard
-                wrapper_functions::copy_to_clipboard(&self.image);
+                wrapper_functions::copy_to_clipboard(&self.story_image[0], &self.draws, self.last_crop.clone())
             }
             else if event.id() == el.3 && el.2 == "Save".to_string() && !(self.texture.is_none()) {
-                wrapper_functions::save_image(&mut self.image, &self.save_path, &self.name_convention, &self.file_format, &mut self.draws)
+                wrapper_functions::save_image(&mut self.story_image[0], &self.save_path, &self.name_convention, &self.file_format, &mut self.draws, &mut self.last_crop);
             }
         }
     }
