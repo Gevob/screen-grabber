@@ -438,13 +438,13 @@ fn edit_single_button(ui: &mut Ui, image: &Image<'_>, mode: &EditType, current_m
 //     println!("dopo2");
 // }
 
-pub fn print_draws3(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTransform,last_index: &mut Option<usize>) {
+pub fn print_draws3(painter: &Painter, draws: &mut Vec<Draws>,screen_rect: RectTransform,last_index: &mut Option<usize>) {
     let mut shape: Vec<Shape> = Vec::new();
     //println!("Testo {:?}",draws);
     //print_text(painter);
     //let shapes = 
     draws
-    .iter().enumerate()
+    .iter_mut().enumerate()
     .for_each(|(index,draw)| {
         match draw {
             Draws::Line(single_line) => {
@@ -470,6 +470,8 @@ pub fn print_draws3(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTrans
             }
             Draws::Text(text) => {
                 let galley = painter.layout_no_wrap(text.letters.clone(), FontId::monospace(32.0), text.stroke.color);
+                let real_rect = Align2::CENTER_CENTER.anchor_rect(Rect::from_min_size(text.point, galley.size()));
+                text.real_pos = real_rect.left_top();
                 let point = screen_rect.transform_pos(text.point);
                 let rect = Align2::CENTER_CENTER.anchor_rect(Rect::from_min_size(point, galley.size()));
                 if last_index.is_some() && last_index.unwrap() == index {
