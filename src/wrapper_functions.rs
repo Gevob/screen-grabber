@@ -57,6 +57,9 @@ pub fn save_image(rgba_image: &mut RgbaImage, save_path: &PathBuf, name_conventi
         dynamic_image = DynamicImage::ImageRgba8(img_tmp);    
     }
     else{
+        let text = format!("{} - {}", last_crop.rectangle_logical.width(), last_crop.rectangle_logical.height());
+        println!("{}", text);
+        
         let cropped_image = img_tmp.view(last_crop.rectangle_logical.left_top().x as u32,
                                                                         last_crop.rectangle_logical.left_top().y as u32,
                                                                         last_crop.rectangle_logical.width() as u32,
