@@ -8,7 +8,9 @@ use std::time::{Instant, Duration};
 use egui::*;
 
 
-use crate::Schermata;
+use crate::{Schermata};
+use crate::draws_functions::{Draws, Crop, Last_Action};
+
 #[derive(Debug)]
 struct ErrorScreenshot(String);
 
@@ -23,7 +25,7 @@ pub fn screenshot (used_monitor: usize) -> Result <RgbaImage, Box<dyn Error>> {
 
 
 
-    pub fn make_screenshot(ctx: &Context, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, schermata: &mut Schermata, used_monitor: usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>){
+    pub fn make_screenshot(ctx: &Context, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, schermata: &mut Schermata, used_monitor: usize, story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>,  draws: &mut Vec<Draws>, last_crop: &mut Crop, last_actions: &mut Vec<Last_Action>, garbage: &mut Vec<Draws>){
         if used_monitor == 9999{
             *image = screenshot_all_monitors().unwrap();
         }
@@ -35,7 +37,14 @@ pub fn screenshot (used_monitor: usize) -> Result <RgbaImage, Box<dyn Error>> {
         let color_image2 = egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize],flat_image.samples);
         let image_data = egui::ImageData::from(color_image2);
         *texture = Some(ctx.load_texture("screen", image_data, Default::default()));
+        
         *schermata = Schermata::Edit;
+        draws.clear();
+        garbage.clear();
+        last_actions.clear();
+        story_image.clear();
+        story_texture.clear();
+        last_crop.rectangle_logical = Rect::NAN;
         story_image.push(image.clone());
         story_texture.push(texture.clone());
     }
