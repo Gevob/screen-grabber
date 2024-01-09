@@ -235,7 +235,7 @@ impl Windows {
 
         let mut style = (*cc.egui_ctx.style()).clone();
 
-        style.visuals.panel_fill = eframe::egui::Color32::from_rgb(136, 6, 206); 
+        style.visuals.panel_fill = eframe::egui::Color32::from_rgb(45, 70, 110); 
         cc.egui_ctx.set_style(style);
 
 

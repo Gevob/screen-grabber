@@ -73,6 +73,7 @@ pub fn save_image(rgba_image: &mut RgbaImage, save_path: &PathBuf, name_conventi
     
     if *save_path != PathBuf::default() {
         output_path = format!("{}\\{}_{}{}", save_path.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
+        dynamic_image.save(output_path).expect("Failed to save image");
     }
     else {
         let p = FileDialog::new().set_directory("/").pick_folder();
@@ -80,10 +81,9 @@ pub fn save_image(rgba_image: &mut RgbaImage, save_path: &PathBuf, name_conventi
             else{
                 let mut path_tmp = p.unwrap();
                 output_path = format!("{}\\{}_{}{}", path_tmp.clone().into_os_string().into_string().unwrap(), name_convention, ts, file_format);
+                dynamic_image.save(output_path).expect("Failed to save image");
             }   
     }
-
-    dynamic_image.save(output_path).expect("Failed to save image");
 }
 
 pub fn show_combo_box(ui: &mut Ui, key: &mut Code, id_combo_box: String){
