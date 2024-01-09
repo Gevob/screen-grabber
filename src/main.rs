@@ -32,9 +32,11 @@ fn main() {
         //initial_window_size: Some([500.0, 400.0].into()),
         //min_window_size: Some([500.0, 400.0].into()),
         //resizable: true,
-        viewport: egui::ViewportBuilder::default()
-         .with_inner_size([800.0, 400.0])
-         .with_resizable(true),
+        viewport: egui::ViewportBuilder::default(),
+         //.with_inner_size([400.0, 400.0])
+         //.with_resizable(false)
+         //.with_maximize_button(false),
+         
         ..Default::default()
     };
     /*
@@ -58,7 +60,7 @@ fn main() {
         ..Default::default()
     };
     */
-    eframe::run_native("Cattura", native_options, Box::new(|cc| Box::new(Windows::new(cc))));
+    eframe::run_native("Cattura", native_options, Box::new(|cc| Box::new(Windows::new(cc)))).unwrap();
     
 }
 
@@ -134,7 +136,6 @@ struct Windows {
     timer_expired: bool,
     start_timer: bool,
     delay_tmp: u64,
-
 }
 
 #[derive(Default,Debug,PartialEq)]
@@ -234,7 +235,7 @@ impl Windows {
 
         let mut style = (*cc.egui_ctx.style()).clone();
 
-        style.visuals.panel_fill = eframe::egui::Color32::from_rgb(32, 33, 36); // Dodger Blue color
+        style.visuals.panel_fill = eframe::egui::Color32::from_rgb(136, 6, 206); 
         cc.egui_ctx.set_style(style);
 
 
@@ -318,48 +319,48 @@ impl eframe::App for Windows {
     }
     
     if self.free_to_screenshots {
-        if self.delay_duration.is_zero() {std::thread::sleep(Duration::from_millis(200));}
+        if self.delay_duration.is_zero() {std::thread::sleep(Duration::from_millis(400));}
+
         self.free_to_screenshots = false;
-        screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used,&mut self.story_image,&mut self.story_texture);
+        screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used,&mut self.story_image, &mut self.story_texture, &mut self.draws, &mut self.last_crop, &mut self.last_actions, &mut self.garbage);
+
+        ctx.send_viewport_cmd(viewport::ViewportCommand::Minimized(false.into()));
+        ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize([900.0, 500.0].into())); //set_window_size substituted by ctx.send....
+        ctx.send_viewport_cmd(viewport::ViewportCommand::Resizable(true.into())); //set_window_size substituted by ctx.send....
+        ctx.send_viewport_cmd(viewport::ViewportCommand::EnableButtons { close: true.into(), minimized: true.into(), maximize: true.into() });
+        self.change_size = false;
         //ctx.send_viewport_cmd(viewport::ViewportCommand::WindowLevel(crate::WindowLevel::Normal));
     }
 
+    if self.schermata == Schermata::Home || self.schermata == Schermata::Setting_Hotkey || self.schermata == Schermata::Setting_Saving || self.schermata == Schermata::Setting_Timer && !self.change_size{
+        //ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize([400.0, 400.0].into())); //set_window_size substituted by ctx.send....
+        ctx.send_viewport_cmd(viewport::ViewportCommand::Resizable(false.into())); //set_window_size substituted by ctx.send....
+        ctx.send_viewport_cmd(viewport::ViewportCommand::EnableButtons { close: true.into(), minimized: true.into(), maximize: false.into() });
+        self.change_size = true;
+    }
+
+    if self.schermata == Schermata::Edit && self.change_size{
+        ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize([900.0, 500.0].into())); //set_window_size substituted by ctx.send....
+        ctx.send_viewport_cmd(viewport::ViewportCommand::Resizable(true.into())); //set_window_size substituted by ctx.send....
+        ctx.send_viewport_cmd(viewport::ViewportCommand::EnableButtons { close: true.into(), minimized: true.into(), maximize: true.into() });
+        self.change_size = false;
+    }
+
     match self.schermata {
-        Schermata::Home => { // frame.info.window_size substituted by ctx.screen_rect().size() 
-            if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
-                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into()))); //set_window_size substituted by ctx.send....
-                self.change_size = true;
-            }
+        Schermata::Home => { // frame.info.window_size substituted by ctx.screen_rect().size()
             gui::home(ctx, &mut self.schermata, &mut self.image, &mut self.texture, &mut self.hotkeys_list, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.monitor_used,&mut self.story_image,&mut self.story_texture,&mut self.free_to_screenshots, &mut self.start_time.0, &mut self.delay_duration, &mut self.start_timer);
         },
         Schermata::Edit => {
-            if ctx.screen_rect().size() != [800.0, 620.0].into() && self.change_size{
-                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([800.0, 620.0].into())));
-                self.change_size = false;
-            }
             gui::edit(ctx, &mut self.draws, &mut self.texture, frame, &mut self.stroke, &mut self.schermata, &mut self.image, &mut self.file_format, &mut self.save_path, &mut self.name_convention, &mut self.last_index, &mut self.mode,&mut self.crop, &mut self.last_actions, &mut self.story_image,&mut self.story_texture,&mut self.garbage, &mut self.last_crop);
         },
         Schermata::Setting_Hotkey => {
-            if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
-                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
-                self.change_size = true;
-            }
-            gui::setting_hotkey(ctx, &mut self.schermata, &mut self.manager, &mut self.modifier_copy, &mut self.key_copy, &mut self.modifier_screen, &mut self.key_screen, &mut self.modifier_save, &mut self.key_save, &mut self.hotkeys_list, &mut self.modifier_copy_tmp, &mut self.key_copy_tmp, &mut self.modifier_screen_tmp, &mut self.key_screen_tmp, &mut self.modifier_save_tmp, &mut self.key_save_tmp, &mut self.update_file);
+            gui::setting_hotkey(ctx, &mut self.schermata, &mut self.manager, &mut self.modifier_copy, &mut self.key_copy, &mut self.modifier_screen, &mut self.key_screen, &mut self.modifier_save, &mut self.key_save, &mut self.hotkeys_list, &mut self.modifier_copy_tmp, &mut self.key_copy_tmp, &mut self.modifier_screen_tmp, &mut self.key_screen_tmp, &mut self.modifier_save_tmp, &mut self.key_save_tmp, &mut self.update_file, &self.texture);
         },
         Schermata::Setting_Saving => {
-            if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
-                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
-                self.change_size = true;
-            }
-            gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp, &mut self.update_file, &mut self.monitor_used, &mut self.monitor_used_tmp);
-
+            gui::setting_saving(ctx, &mut self.schermata, &mut self.file_format, &mut self.save_path, &mut self.file_format_tmp, &mut self.save_path_tmp, &mut self.name_convention, &mut self.name_convention_tmp, &mut self.update_file, &mut self.monitor_used, &mut self.monitor_used_tmp, &self.texture);
         },
         Schermata::Setting_Timer=> {
-            if ctx.screen_rect().size() != [400.0, 300.0].into() && self.change_size{
-                ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize(([400.0, 300.0].into())));
-                self.change_size = true;
-            }
-            gui::setting_timer(ctx, &mut self.schermata, &mut self.delay_duration, &mut self.delay_tmp);
+            gui::setting_timer(ctx, &mut self.schermata, &mut self.delay_duration, &mut self.delay_tmp , &self.texture);
 
         },
     }
@@ -371,6 +372,8 @@ impl eframe::App for Windows {
             if event.id() == el.3 && el.2 == "Screen".to_string() {
                 //screen::make_screenshot(ctx, &mut self.image, &mut self.texture, &mut self.schermata, self.monitor_used,&mut self.story_image, &mut self.story_texture)
                 ctx.send_viewport_cmd(viewport::ViewportCommand::Minimized(true.into()));
+                self.start_time = MyInstant(Instant::now());
+                self.start_timer = true;
                 self.free_to_screenshots = true;
             }
             else if event.id() == el.3 && el.2 == "Copy".to_string() && !(self.texture.is_none()) {
@@ -382,7 +385,6 @@ impl eframe::App for Windows {
             }
         }
     }
-    
     if self.update_file{
         self.update_file_default_setting();
         self.update_file = false;
@@ -395,8 +397,6 @@ impl eframe::App for Windows {
         self.monitor_used_tmp = 0;
         self.num_monitors = display_infos.len();
     }
-    //se il numero dello schermo usato è maggiore del numero di schermi, allora risettalo a zero
-
    }
 }
 
