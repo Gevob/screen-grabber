@@ -34,25 +34,16 @@ use std::io::stdout;
 use screenshots::{Screen, display_info};
 use crate::icons::*;
 
-pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, monitor_used: &mut usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>, free_to_screenshot: &mut bool, start_time : &mut Instant, delay_duration : &mut Duration, start_timer: &mut bool){
-    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
+pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImage, texture : &mut Option<TextureHandle>, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, monitor_used: &mut usize,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>, free_to_screenshot: &mut bool, start_time : &mut Instant, delay_duration : &mut Duration, start_timer: &mut bool){       
+    ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize([400.0, 400.0].into())); //set_window_size substituted by ctx.send....
+
+    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
             menu::bar(ui, |ui| {
+                ui.label("                                  ");
+                edit_menu_button(ui, &SETTING, schermata);
+                ui.label("                    ");
 
-                ui.menu_button("Settings", |ui| {
-                    if ui.button("Custom Hotkey").on_hover_text("Customize your Hotkeys").clicked() {
-                        *schermata = Schermata::Setting_Hotkey;
-                    }
-
-                    if ui.button("Saving settings").on_hover_text("Customize default saving options").clicked() {
-                        *schermata = Schermata::Setting_Saving;
-                    }
-
-                    if ui.button("Timer settings").on_hover_text("Set a timer").clicked() {
-                        *schermata = Schermata::Setting_Timer;
-                    }
-                }).response.on_hover_text("Change your Settings");; //.on_hover_text("Take a Screenshot");
-
-                if ui.button("Screenshots").on_hover_text("Take a Screenshot").clicked() {
+                if edit_simple_button(ui,&SCREEN).on_hover_text("Take a Screenshot").clicked(){
                     if delay_duration.is_zero() {
                         ctx.send_viewport_cmd(viewport::ViewportCommand::Minimized(true.into()));
                         *free_to_screenshot = true;
@@ -63,84 +54,112 @@ pub fn home(ctx: &egui::Context, schermata: &mut Schermata, image: &mut RgbaImag
                         *start_time = Instant::now();
                         *start_timer = true;
                     }
-                    
                 }
-                    
+                ui.label("                                  ");
             });
+            ui.end_row();
+            ui.end_row();
+            ui.end_row();
 
-            ui.centered_and_justified(|ui| {
             //mostro le hotkeys registrate
-                Grid::new("some_unique_id").show(ui, |ui| {
-                    ui.label("REGISTERED KEYS");
-                    ui.end_row();
-        
-                    for curr_hotkey in hotkeys_list.iter(){
-                        //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
-                        ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1));
-                        ui.label(curr_hotkey.2.clone());
-                        ui.end_row();
-                    }
 
-                    ui.add_space(20.0);
-
-                    ui.end_row();                
-                    ui.label("CUSTOM SAVING");
-
-                    ui.end_row();
-                    ui.label("File Format: ");
-                    ui.label(file_format.clone());
-
-                    ui.end_row();
-                    ui.label("Default Path :");
-
-                    if *save_path == PathBuf::default(){
-                        ui.label("Go to settings...");
-                    }
-                    else {
-                        ui.label(save_path.clone().into_os_string().into_string().unwrap());
-                    }
-
-                    ui.end_row();
-                    ui.label("File name:");
-                    ui.label(name_convention.clone());
-
-                    ui.end_row();
-                    ui.end_row();
-
-                    if *monitor_used == 9999{
-                        let text = format!("All monitors are being used");
-                        ui.label(text);
-                    }
-                    else{
-                        let text = format!("Monitor {} is being used", (*monitor_used + 1));
-                        ui.label(text);
-                    }
-
-                    ui.end_row();
-                    ui.end_row();
-
-                    if (*delay_duration).is_zero() {
-                        let text = format!("No timer selected");
-                        ui.label(text);
-                    }
-                    else{
-                        let text = format!("Timer: {} seconds", ((*delay_duration).as_secs() as u64));
-                        ui.label(text);
-                    }
-                    
-
-                });
+            ui.add_space(20.0);
+            ui.horizontal(|ui| {
+                //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                ui.add_space(95.0);
+                ui.strong("REGISTERED KEYS");
             });
-    });    
+
+            for curr_hotkey in hotkeys_list.iter(){
+                ui.horizontal(|ui| {
+                    //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                    ui.add_space(130.0);
+                    ui.strong(hotkey_to_String(curr_hotkey.0, curr_hotkey.1));
+                    ui.strong(curr_hotkey.2.clone());
+                    ui.end_row();
+                });
+            }
+
+            ui.add_space(20.0);
+            ui.horizontal(|ui| {
+                //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                ui.add_space(95.0);
+                ui.strong("CUSTOM SAVING");
+            });
+
+            ui.horizontal(|ui| {
+                //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                ui.add_space(130.0);
+                ui.strong("File Format: ");
+                ui.strong(file_format.clone());
+            });
+
+            ui.horizontal(|ui| {
+                //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                ui.add_space(130.0);
+                ui.strong("Default Path :");
+
+                if *save_path == PathBuf::default(){
+                    ui.strong("Go to settings...");
+                }
+                else {
+                    let text = format!("(...)\\{}", save_path.clone().into_os_string().into_string().unwrap().split("\\").last().unwrap());
+                    ui.strong(text).on_hover_text(save_path.clone().into_os_string().into_string().unwrap());
+                }
+            });
+            
+            ui.horizontal(|ui| {
+                //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                ui.add_space(130.0);
+                ui.strong("File name:");
+                ui.strong(name_convention.clone());
+            });
+
+            ui.horizontal(|ui| {
+                //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                ui.add_space(130.0);
+
+                if *monitor_used == 9999{
+                    let text = format!("All monitors are being used");
+                    ui.strong(text);
+                }
+                else{
+                    let text = format!("Monitor {} is being used", (*monitor_used + 1));
+                    ui.strong(text);
+                }
+            });
+
+
+            ui.add_space(20.0);
+            ui.horizontal(|ui| {
+                //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                ui.add_space(95.0);
+                ui.strong("TIMER");
+            });
+
+            ui.horizontal(|ui| {
+                //ui.label(hotkey_to_String(curr_hotkey.0, curr_hotkey.1)); 
+                ui.add_space(130.0);
+
+                if (*delay_duration).is_zero() {
+                    let text = format!("No timer selected");
+                    ui.strong(text);
+                }
+                else{
+                    let text = format!("Timer: {} seconds", ((*delay_duration).as_secs() as u64));
+                    ui.strong(text);
+                }
+            });
+
+        });
 }
 
-
 pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<TextureHandle>, frame: &mut eframe::Frame, stroke: &mut Stroke, schermata: &mut Schermata, rgba_image: &mut RgbaImage, file_format: &mut String, save_path: &mut PathBuf, name_convention: &mut String, last_index: &mut Option<usize>, mode: &mut EditType,crop: &mut Crop, last_actions: &mut  Vec<Last_Action>,story_image : &mut Vec<RgbaImage>, story_texture : &mut Vec<Option<TextureHandle>>, garbage: &mut Vec<Draws>, last_crop: &mut Crop){
-    //sleep(Duration::from_millis(200));
-    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {  
+    egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| { 
         menu::bar(ui, |ui| {
             add_edits_buttons(ui, stroke, mode,last_index,draws,last_actions,rgba_image,texture,story_image,story_texture,crop,garbage,last_crop);
-            if ui.button("Discard").clicked() {
+            
+            if edit_simple_button(ui,&TRASH).on_hover_text("Discard the current screen").clicked(){
                 *schermata = Schermata::Home;
                 //elimina anche gli edit
                 *texture = None; //e setta a null la textureHandle
@@ -151,13 +170,15 @@ pub fn edit(ctx: &egui::Context, draws: &mut Vec<Draws>, texture : &mut Option<T
                 last_actions.clear();
             }
 
-            if ui.button("Save").clicked(){
+            if edit_simple_button(ui,&SAVE).on_hover_text("Save the current screen").clicked(){
                 wrapper_functions::save_image(&mut story_image[0], save_path, name_convention, file_format, draws, last_crop);
             }
 
-            if ui.button("Copy").on_hover_text("Copy the Screenshot to Clipboard").clicked() {
+            if edit_simple_button(ui,&COPY).on_hover_text("Copy the current screen").clicked(){
                 wrapper_functions::copy_to_clipboard(&story_image[0], draws, last_crop.clone());
             }
+
+            edit_menu_button(ui, &SETTING, schermata);
         });
 
         ui.add_space(30.0);
@@ -259,7 +280,7 @@ fn add_edits_buttons(ui: &mut Ui, stroke: &mut Stroke, mode: &mut EditType,last_
     if edit_single_button(ui,&TEXT,mode,&EditType::Text).clicked(){
         *mode = EditType::Text;
     }
-    if edit_single_button(ui,&SCISSOR,mode,&EditType::Crop).clicked(){
+    if edit_single_button(ui,&SCISSOR,mode,&EditType::Crop).on_hover_text("Drag and drop + Enter").clicked(){
         *mode = EditType::Crop;
         *last_index = None;
     }
@@ -337,6 +358,67 @@ fn edit_single_button(ui: &mut Ui, image: &Image<'_>, mode: &EditType, current_m
     //ui.add(Button::image(image));
 
     response
+}
+
+fn edit_simple_button(ui: &mut Ui, image: &Image<'_>) -> Response{
+    let size_points = egui::Vec2::splat(32.0);
+    let (id, rect) = ui.allocate_space(size_points);
+    let response = ui.interact(rect, id, Sense::click());
+    if response.hovered() {
+        ui.painter().rect_filled(
+            rect,
+            Rounding::same(4.0),
+            Color32::from_rgb(83,83,83)
+        );
+        //ui.visuals().widgets.active.fg_stroke.color
+    }
+    let image = image
+    .clone()
+    .maintain_aspect_ratio(true)
+    //.tint(tint)
+    .fit_to_exact_size(size_points);
+    image.paint_at(ui, rect);
+    //ui.add(Button::image(image));
+
+    response
+}
+
+fn edit_menu_button(ui: &mut Ui, image: &Image<'_>, schermata: &mut Schermata) -> Response{
+    
+    let size_points = egui::Vec2::splat(32.0);
+    let image = image
+        .clone()
+        .maintain_aspect_ratio(true)
+        //.tint(tint)
+        .fit_to_exact_size(size_points);
+        //ui.add(Button::image(image));
+        
+
+    let menu_responce = ui.menu_image_button(image.clone(), |ui| {
+        if ui.button("Custom Hotkey").clicked() {
+            *schermata = Schermata::Setting_Hotkey;
+        }
+
+        if ui.button("Saving settings").clicked() {
+            *schermata = Schermata::Setting_Saving;
+        }
+
+        if ui.button("Timer settings").clicked() {
+            *schermata = Schermata::Setting_Timer;
+        }
+    }).response.on_hover_text("Go to settings");
+
+    if menu_responce.hovered() {
+        ui.painter().rect_filled(
+            menu_responce.rect,
+            Rounding::same(4.0),
+            Color32::from_rgb(83,83,83)
+        );
+        image.clone().paint_at(ui, menu_responce.rect);
+        //ui.visuals().widgets.active.fg_stroke.color
+    }
+
+    return menu_responce;
 }
 
 // pub fn print_draws(painter: &Painter, draws: &Vec<Draws>,screen_rect: RectTransform) {
@@ -502,28 +584,15 @@ pub fn print_draws3(painter: &Painter, draws: &mut Vec<Draws>,screen_rect: RectT
     painter.extend(shape);
 }
 
-pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code, update_file: &mut bool){
+pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &mut MyGlobalHotKeyManager, modifier_copy: &mut Modifiers, key_copy: &mut Code, modifier_screen: &mut Modifiers, key_screen: &mut Code, modifier_save: &mut Modifiers, key_save: &mut Code, hotkeys_list: &mut Vec<(Modifiers, Code, String, u32)>, modifier_copy_tmp: &mut Modifiers, key_copy_tmp: &mut Code, modifier_screen_tmp: &mut Modifiers, key_screen_tmp: &mut Code, modifier_save_tmp: &mut Modifiers, key_save_tmp: &mut Code, update_file: &mut bool, texture : &Option<TextureHandle>){
     let window_size = egui::vec2(0.0, 0.0);
+    ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize([300.0, 200.0].into())); //set_window_size substituted by ctx.send....
 
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
-        menu::bar(ui, |ui| {
-            ui.menu_button("Settings", |ui| {
-                if ui.button("Custom Hotkey").clicked() {
-                    *schermata = Schermata::Setting_Hotkey;
-                }
-                if ui.button("Saving settings").clicked() {
-                    *schermata = Schermata::Setting_Saving;
-                }
-                if ui.button("Timer settings").clicked() {
-                    *schermata = Schermata::Setting_Timer;
-                }
-            });
-        });
-
         ui.add_space(20.0);
 
             Grid::new("miao").show(ui, |ui| {
-                ui.label("COPY ");
+                ui.strong("COPY ");
 
                 egui::ComboBox::from_id_source("Choose modifier copy")
                 .selected_text(format!("{:?}", modifier_copy_tmp))
@@ -537,7 +606,7 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
 
                 ui.end_row();
 
-                ui.label("SCREEN ");
+                ui.strong("SCREEN ");
 
                 egui::ComboBox::from_id_source("Choose modifier screen")
                 .selected_text(format!("{:?}", modifier_screen_tmp))
@@ -551,7 +620,7 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
 
                 ui.end_row();
 
-                ui.label("SAVE ");
+                ui.strong("SAVE ");
 
                 egui::ComboBox::from_id_source("Choose modifier save")
                 .selected_text(format!("{:?}", modifier_save_tmp))
@@ -587,7 +656,13 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
                         *key_save_tmp = el.1.clone();
                     }
                 }
-                *schermata = Schermata::Home; 
+
+                if texture.is_none(){
+                    *schermata = Schermata::Home;
+                }
+                else{
+                    *schermata = Schermata::Edit;
+                }   
             }
 
            //fai un check per verificare che tutte le hotkeys siano diverse
@@ -657,127 +732,135 @@ pub fn setting_hotkey(ctx: &egui::Context, schermata: &mut Schermata, manager: &
                 ((*manager).0).register_all(&hotkeys_to_save).unwrap(); //ho fatto in questo modo perchè GlobalHotKeyManager non aveva il tratto Default
 
                 *update_file = true;
-                *schermata = Schermata::Home; 
+
+                if texture.is_none(){
+                    *schermata = Schermata::Home;
+                }
+                else{
+                    *schermata = Schermata::Edit;
+                }
             }
         }
     });
 }
 
-pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String, update_file: &mut bool, monitor_used: &mut usize, monitor_used_tmp: &mut usize){
+pub fn setting_saving(ctx: &egui::Context, schermata: &mut Schermata, file_format: &mut String, save_path: &mut PathBuf, file_format_tmp: &mut String, save_path_tmp: &mut PathBuf, name_convention: &mut String, name_convention_tmp: &mut String, update_file: &mut bool, monitor_used: &mut usize, monitor_used_tmp: &mut usize, texture : &Option<TextureHandle>){
     let window_size = egui::vec2(0.0, 0.0);
+    ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize([300.0, 325.0].into())); //set_window_size substituted by ctx.send....
 
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
-
-        menu::bar(ui, |ui| {
-            ui.menu_button("Settings", |ui| {
-                if ui.button("Custom Hotkey").clicked() {
-                    *schermata = Schermata::Setting_Hotkey;
-                }
-
-                if ui.button("Saving settings").clicked() {
-                    *schermata = Schermata::Setting_Saving;
-                }
-
-                if ui.button("Timer settings").clicked() {
-                    *schermata = Schermata::Setting_Timer;
-                }
-            });
-        });
-
         ui.add_space(20.0);
         
-            egui::ComboBox::from_label("Choose format")
-                .selected_text(format!("{}", file_format_tmp))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(file_format_tmp, ".png".to_string(), "PNG");
-                    ui.selectable_value(file_format_tmp, ".jpeg".to_string(), "JPEG");
-                    ui.selectable_value(file_format_tmp, ".gif".to_string(), "GIF");
-                    ui.selectable_value(file_format_tmp, ".tiff".to_string(), "TIFF");
-                    ui.selectable_value(file_format_tmp, ".tga".to_string(), "TGA");
-                    ui.selectable_value(file_format_tmp, ".bmp".to_string(), "BMP");
-                    ui.selectable_value(file_format_tmp, ".qoi".to_string(), "QOI");
-                });
+        ui.strong("FORMAT");
+        ui.end_row();
 
-                ui.add_space(10.0);
-
-                Grid::new("123").show(ui, |ui| {
-                    ui.label("DEFAULT PATH");
-                    ui.end_row();
-
-                    let button_text1 = "Choose default path";
-                    let button_text2 = "Change default path";
-                    //let button_text1 = "Choose file name";
-                    //let button_text2 = "Change file name";
-                    let button_text = if *save_path_tmp == PathBuf::default() {button_text1} else {button_text2};
-
-                    if ui.button(button_text).clicked(){
-                        let p = FileDialog::new().set_directory("/").pick_folder();
-                        if(p.is_none()) { }
-                        else{
-                            *save_path_tmp=p.unwrap();
-                        }                         
-                    }
-
-                    ui.end_row();
-                    ui.end_row();
-
-                    ui.label("CHOOSE FILE NAME");
-                    ui.end_row();
-                    ui.add(egui::TextEdit::singleline(name_convention_tmp));
-                    
-                    ui.end_row();
-                    ui.end_row();
-
-                    let display_infos: Vec<display_info::DisplayInfo> = screenshots::display_info::DisplayInfo::all().unwrap();
-
-                    if display_infos.len() == 1{
-                        let text = format!("Monitor {} is being used", (*monitor_used + 1));
-                        ui.label(text);
-                    }
-
-                    else{                        
-                        egui::ComboBox::from_label("Choose monitor")
-                        .selected_text(
-                            if *monitor_used_tmp != 9999 {
-                                format!("{}", (*monitor_used_tmp + 1))
-                            } else {
-                                String::from("All")
-                            }
-                        )
-                        .show_ui(ui, |ui| {
-                            for (i, _)  in display_infos.iter().enumerate(){
-                                ui.selectable_value(monitor_used_tmp, i, (i+1).to_string());
-                            }
-                            //the following one is used in case i want a screenshot af all the screens
-                            ui.selectable_value(monitor_used_tmp, 9999, "All".to_string());
-                        });
-                    }
-                });
-
-                ui.add_space(30.0);
-
-                if ui.button("Chiudi").clicked(){
-                    *save_path_tmp = save_path.clone();
-                    *file_format_tmp = file_format.clone();
-                    *name_convention_tmp = name_convention.clone();
-                    *monitor_used_tmp = *monitor_used;
-                    *schermata = Schermata::Home;
-                }
-
-                ui.set_enabled((*save_path != save_path_tmp.clone()) || (*file_format != file_format_tmp.clone()) || (*name_convention != *name_convention_tmp) || (*monitor_used != *monitor_used_tmp));
-
-                if ui.button("Salva modifiche").clicked(){
-                    *save_path = save_path_tmp.clone();
-                    *file_format = file_format_tmp.clone(); 
-                    *name_convention = name_convention_tmp.clone();
-                    *monitor_used = *monitor_used_tmp;
-
-                    *update_file = true; //in order to update the default initial settings
-                    *schermata = Schermata::Home; 
-                }
+        egui::ComboBox::from_label("Choose format")
+            .selected_text(format!("{}", file_format_tmp))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(file_format_tmp, ".png".to_string(), "PNG");
+                ui.selectable_value(file_format_tmp, ".jpeg".to_string(), "JPEG");
+                ui.selectable_value(file_format_tmp, ".gif".to_string(), "GIF");
+                ui.selectable_value(file_format_tmp, ".tiff".to_string(), "TIFF");
+                ui.selectable_value(file_format_tmp, ".tga".to_string(), "TGA");
+                ui.selectable_value(file_format_tmp, ".bmp".to_string(), "BMP");
+                ui.selectable_value(file_format_tmp, ".qoi".to_string(), "QOI");
             });
-}
 
+        ui.end_row();
+        ui.end_row();
+
+        Grid::new("123").show(ui, |ui| {
+            ui.strong("DEFAULT PATH");
+            ui.end_row();
+
+            let button_text1 = "Choose default path";
+            let button_text2 = "Change default path";
+            //let button_text1 = "Choose file name";
+            //let button_text2 = "Change file name";
+            let button_text = if *save_path_tmp == PathBuf::default() {button_text1} else {button_text2};
+
+            if ui.button(button_text).clicked(){
+                let p = FileDialog::new().set_directory("/").pick_folder();
+                if(p.is_none()) { }
+                else{
+                    *save_path_tmp=p.unwrap();
+                }                         
+            }
+
+            ui.end_row();
+            ui.end_row();
+
+            ui.strong("FILE NAME");
+            ui.end_row();
+            ui.add(egui::TextEdit::singleline(name_convention_tmp));
+            
+            ui.end_row();
+            ui.end_row();
+
+            let display_infos: Vec<display_info::DisplayInfo> = screenshots::display_info::DisplayInfo::all().unwrap();
+
+            if display_infos.len() == 1{
+                let text = format!("Monitor {} is being used", (*monitor_used + 1));
+                ui.strong(text);
+            }
+
+            else{                        
+                ui.strong("MONITOR");
+                ui.end_row();
+
+                egui::ComboBox::from_label("Choose monitor")
+                .selected_text(
+                    if *monitor_used_tmp != 9999 {
+                        format!("{}", (*monitor_used_tmp + 1))
+                    } else {
+                        String::from("All")
+                    }
+                )
+                .show_ui(ui, |ui| {
+                    for (i, _)  in display_infos.iter().enumerate(){
+                        ui.selectable_value(monitor_used_tmp, i, (i+1).to_string());
+                    }
+                    //the following one is used in case i want a screenshot af all the screens
+                    ui.selectable_value(monitor_used_tmp, 9999, "All".to_string());
+                });
+            }
+        });
+
+        ui.add_space(30.0);
+
+        if ui.button("Chiudi").clicked(){
+            *save_path_tmp = save_path.clone();
+            *file_format_tmp = file_format.clone();
+            *name_convention_tmp = name_convention.clone();
+            *monitor_used_tmp = *monitor_used;
+            
+            if texture.is_none(){
+                *schermata = Schermata::Home;
+            }
+            else{
+                *schermata = Schermata::Edit;
+            }
+        }
+
+        ui.set_enabled((*save_path != save_path_tmp.clone()) || (*file_format != file_format_tmp.clone()) || (*name_convention != *name_convention_tmp) || (*monitor_used != *monitor_used_tmp));
+
+        if ui.button("Salva modifiche").clicked(){
+            *save_path = save_path_tmp.clone();
+            *file_format = file_format_tmp.clone(); 
+            *name_convention = name_convention_tmp.clone();
+            *monitor_used = *monitor_used_tmp;
+
+            *update_file = true; //in order to update the default initial settings
+            
+            if texture.is_none(){
+                *schermata = Schermata::Home;
+            }
+            else{
+                *schermata = Schermata::Edit;
+            }
+        }
+    });
+}
 
 fn set_image_gui_visible (window_size :egui::Vec2, prop :f32) -> egui::Vec2 {
     let mut  size = egui::Vec2::new(0.0, 0.0);
@@ -899,12 +982,13 @@ pub fn String_to_hotkey(my_string: String) -> (Modifiers, Code){
     return result;
 }
 
-
-pub fn setting_timer(ctx: &egui::Context, schermata: &mut Schermata, delay_duration : &mut Duration, delay_tmp : &mut u64){
+pub fn setting_timer(ctx: &egui::Context, schermata: &mut Schermata, delay_duration : &mut Duration, delay_tmp : &mut u64, texture : &Option<TextureHandle>){
     let window_size = egui::vec2(0.0, 0.0);
+    ctx.send_viewport_cmd(viewport::ViewportCommand::InnerSize([250.0, 170.0].into())); //set_window_size substituted by ctx.send....
 
     egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
 
+    /*
         menu::bar(ui, |ui| {
             ui.menu_button("Settings", |ui| {
                 if ui.button("Custom Hotkey").clicked() {
@@ -920,30 +1004,43 @@ pub fn setting_timer(ctx: &egui::Context, schermata: &mut Schermata, delay_durat
                 }
             });
         });
+    */
 
-        ui.add_space(20.0);
-        
-            egui::ComboBox::from_label("Choose a delay")
-                .selected_text(format!("{}", delay_tmp))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(delay_tmp, 0, "0 sec");
-                    ui.selectable_value(delay_tmp, 3, "3 sec");
-                    ui.selectable_value(delay_tmp, 5, "5 sec");
-                    ui.selectable_value(delay_tmp, 10, "10 sec");
-                });
+    ui.add_space(20.0);
+    ui.strong("DELAY");
+    ui.end_row();
+    egui::ComboBox::from_label("Choose a delay")
+        .selected_text(format!("{}", delay_tmp))
+        .show_ui(ui, |ui| {
+            ui.selectable_value(delay_tmp, 0, "0 sec");
+            ui.selectable_value(delay_tmp, 3, "3 sec");
+            ui.selectable_value(delay_tmp, 5, "5 sec");
+            ui.selectable_value(delay_tmp, 10, "10 sec");
+        });
 
-                ui.add_space(30.0);
+        ui.add_space(30.0);
 
-                if ui.button("Chiudi").clicked(){
-                    *delay_tmp = (*delay_duration).as_secs() as u64;
-                    *schermata = Schermata::Home;
-                }
+        if ui.button("Chiudi").clicked(){
+            *delay_tmp = (*delay_duration).as_secs() as u64;
 
-                ui.set_enabled(*delay_duration != Duration::from_secs(*delay_tmp));
+            if texture.is_none(){
+                *schermata = Schermata::Home;
+            }
+            else{
+                *schermata = Schermata::Edit;
+            }
+        }
 
-                if ui.button("Salva modifiche").clicked(){
-                    *delay_duration = Duration::from_secs(*delay_tmp);
-                    *schermata = Schermata::Home; 
-                }
-            });
+        ui.set_enabled(*delay_duration != Duration::from_secs(*delay_tmp));
+
+        if ui.button("Salva modifiche").clicked(){
+            *delay_duration = Duration::from_secs(*delay_tmp);
+                                if texture.is_none(){
+                *schermata = Schermata::Home;
+            }
+            else{
+                *schermata = Schermata::Edit;
+            }
+        }
+    });
 }
