@@ -105,7 +105,9 @@ pub fn write_text(painter: &Painter,draws: &mut Vec<Draws>, ui: &mut Ui, origina
     }
     if interaction.clicked() {
         draws.push(Draws::Text({
-            let mut t = Text::new(stroke);
+            let mut new_stroke = stroke.clone();
+            new_stroke.width = new_stroke.width * 8.0;
+            let mut t = Text::new(&new_stroke);
             t.point = original.transform_pos_clamped(interaction.interact_pointer_pos().unwrap());
             t
         }));
@@ -203,7 +205,7 @@ pub fn erase_edit(draws: &mut Vec<Draws>,ui: &mut Ui, original: RectTransform,pa
                     }
                 }
                 Draws::Text(text) => {
-                    let galley = painter.layout_no_wrap(text.letters.clone(), FontId::monospace(32.0), text.stroke.color);
+                    let galley = painter.layout_no_wrap(text.letters.clone(), FontId::monospace(text.stroke.width), text.stroke.color);
                     let rect = Align2::CENTER_CENTER.anchor_rect(Rect::from_min_size(text.point, galley.size()));
                     if Shape::galley(rect.min, galley).visual_bounding_rect().contains(coordinates) {
                         println!("FOUND");
