@@ -222,7 +222,7 @@ fn draw_text_on_image(text: &Text, image: &mut RgbaImage, ){
     let font_data: &[u8] = include_bytes!("SpaceMono-Regular.ttf");
     let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
     println!("{}", text.letters);
-    draw_text_mut(image, color, text.real_pos.x as i32, text.real_pos.y as i32, Scale::uniform(80.0), &font, text.letters.as_str())
+    draw_text_mut(image, color, text.real_pos.x as i32, text.real_pos.y as i32, Scale::uniform(text.stroke.width * 1.30), &font, text.letters.as_str())
 }
 
 fn blend_pixels<P>(start: P, end: P, weight: f32) -> P
