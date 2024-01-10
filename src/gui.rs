@@ -551,7 +551,7 @@ pub fn print_draws3(painter: &Painter, draws: &mut Vec<Draws>,screen_rect: RectT
                 shape.push(egui::Shape::rect_stroke(Rect::from_min_max(min, max), epaint::Rounding::ZERO, proportional_stroke));
             }
             Draws::Text(text) => {
-                let galley = painter.layout_no_wrap(text.letters.clone(), FontId::monospace(32.0), text.stroke.color);
+                let galley = painter.layout_no_wrap(text.letters.clone(), FontId::monospace(text.stroke.width * screen_rect.scale()[0]), text.stroke.color);
                 let real_rect = Align2::CENTER_CENTER.anchor_rect(Rect::from_min_size(text.point, galley.size()));
                 text.real_pos = real_rect.left_top();
                 let point = screen_rect.transform_pos(text.point);
