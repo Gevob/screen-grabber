@@ -14,7 +14,7 @@ Rust Programming Language (https://www.rust-lang.org/tools/install)
 Steps
 1) Clone the repository:
 ```bash
-git clone https://github.com/your-username/screen-grabber.git
+git clone https://github.com/bay9990909/screen-grabber.git
 ```
 2) Navigate to the project directory:
 
